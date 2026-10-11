@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Algorithm Visualizer · 算法可视化</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">A</span><span>Algorithm Visualizer</span></div>
+    <div class="top-actions">
+      <a class="ghost-btn" href="runtime-lab.html" style="text-decoration:none" title="仅在本机单独启动受控编译服务后可用">C++ 本地运行实验室</a>
+      <button id="randomBtn" class="ghost-btn">随机数据</button>
+      <button id="themeBtn" class="icon-btn" title="切换主题">◐</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar">
+      <div class="search-wrap"><input id="searchInput" placeholder="搜索算法…" autocomplete="off"></div>
+      <nav id="algorithmList"></nav>
+      <div class="sidebar-note">静态演示无需联网<br>支持排序、查找与图算法演示<br>C++ 编译仅限本机显式启用</div>
+    </aside>
+
+    <section class="main-panel">
+      <div class="hero-row">
+        <div><span id="categoryBadge" class="badge"></span><h1 id="algorithmTitle"></h1><p id="algorithmDesc"></p></div>
+        <div class="complexity"><span>时间</span><strong id="timeComplexity"></strong><span>空间</span><strong id="spaceComplexity"></strong></div>
+      </div>
+
+      <div class="input-card">
+        <label for="dataInput">输入数据</label>
+        <input id="dataInput" value="42, 18, 67, 9, 33, 55, 24, 72">
+        <button id="applyBtn" class="ghost-btn">应用</button>
+        <small id="inputHint">使用英文逗号分隔，最多 18 个整数</small>
+      </div>
+
+      <div class="content-grid">
+        <section class="visual-card">
+          <div class="card-head"><span>可视化舞台</span><span id="stepLabel">准备就绪</span></div>
+          <div id="visualStage" class="visual-stage"></div>
+          <div class="controls">
+            <button id="resetBtn" class="control-btn">↺ 重置</button>
+            <button id="stepBtn" class="control-btn">→ 单步</button>
+            <button id="playBtn" class="play-btn">▶ 开始</button>
+            <label class="speed">速度 <input id="speedInput" type="range" min="1" max="10" value="6"><span id="speedValue">6×</span></label>
+          </div>
+        </section>
+
+        <section class="code-card">
+          <div class="card-head"><span>伪代码</span><span id="languageLabel">JavaScript</span></div>
+          <pre id="codeViewer"></pre>
+        </section>
+      </div>
+
+      <section class="log-card">
+        <div class="card-head"><span>执行日志</span><button id="clearLogBtn" class="text-btn">清空</button></div>
+        <div id="logOutput" class="log-output"><span class="muted">选择算法并点击“开始”</span></div>
+      </section>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

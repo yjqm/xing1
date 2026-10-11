@@ -1,0 +1,182 @@
+/* 互动课堂专属鼠标：仅在精确指针设备上启用，不影响触屏。 */
+@media (pointer: fine) {
+  html.ic-cursor-ready body {
+    cursor: none;
+  }
+
+  html.ic-cursor-ready a,
+  html.ic-cursor-ready button,
+  html.ic-cursor-ready [role="button"],
+  html.ic-cursor-ready [onclick],
+  html.ic-cursor-ready summary,
+  html.ic-cursor-ready label,
+  html.ic-cursor-ready .course-select-card,
+  html.ic-cursor-ready .chapter-card,
+  html.ic-cursor-ready .nav-item,
+  html.ic-cursor-ready .btn {
+    cursor: none !important;
+  }
+
+  /* 文字编辑、精细拖拽区域保留系统指针，避免影响可用性。 */
+  html.ic-cursor-ready input,
+  html.ic-cursor-ready textarea,
+  html.ic-cursor-ready select,
+  html.ic-cursor-ready option,
+  html.ic-cursor-ready [contenteditable="true"] {
+    cursor: auto !important;
+  }
+
+  #ic-cursor-pointer,
+  #ic-cursor-ring {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2147483646;
+    pointer-events: none;
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+
+  #ic-cursor-pointer {
+    --cursor-x: -80px;
+    --cursor-y: -80px;
+    --cursor-scale: 1;
+    width: 25px;
+    height: 31px;
+    transform-origin: 3px 3px;
+    transform: translate3d(var(--cursor-x), var(--cursor-y), 0) scale(var(--cursor-scale));
+    filter: drop-shadow(0 3px 8px rgba(0,0,0,.62)) drop-shadow(0 0 7px rgba(255,93,59,.34));
+    transition: opacity .16s ease, filter .18s ease;
+  }
+
+  #ic-cursor-pointer svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  #ic-cursor-pointer .ic-cursor-main {
+    fill: #15151d;
+    stroke: url(#icCursorGradient);
+    stroke-width: 1.65;
+    stroke-linejoin: round;
+    transition: fill .18s ease, stroke-width .18s ease;
+  }
+
+  #ic-cursor-pointer .ic-cursor-shine {
+    fill: none;
+    stroke: rgba(255,255,255,.72);
+    stroke-width: 1.05;
+    stroke-linecap: round;
+    opacity: .76;
+  }
+
+  #ic-cursor-ring {
+    --ring-x: -80px;
+    --ring-y: -80px;
+    --ring-scale: 1;
+    width: 31px;
+    height: 31px;
+    margin: -15.5px 0 0 -15.5px;
+    border: 1px solid rgba(255,105,73,.54);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,93,59,.085) 0 18%, transparent 21%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.035) inset,
+                0 0 15px rgba(255,93,59,.12);
+    transform: translate3d(var(--ring-x), var(--ring-y), 0) scale(var(--ring-scale));
+    transition: opacity .16s ease, width .2s ease, height .2s ease,
+                border-color .18s ease, background .18s ease, box-shadow .18s ease;
+  }
+
+  #ic-cursor-ring::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 3px;
+    height: 3px;
+    margin: -1.5px;
+    border-radius: 50%;
+    background: #ff7452;
+    box-shadow: 0 0 8px rgba(255,93,59,.78);
+    transition: transform .18s ease, opacity .18s ease;
+  }
+
+  #ic-cursor-pointer.is-visible,
+  #ic-cursor-ring.is-visible {
+    opacity: 1;
+  }
+
+  #ic-cursor-pointer.is-hidden,
+  #ic-cursor-ring.is-hidden {
+    opacity: 0 !important;
+  }
+
+  #ic-cursor-pointer.is-hover {
+    filter: drop-shadow(0 4px 9px rgba(0,0,0,.68)) drop-shadow(0 0 10px rgba(255,93,59,.52));
+  }
+
+  #ic-cursor-pointer.is-hover .ic-cursor-main {
+    fill: rgba(255,93,59,.22);
+    stroke-width: 2;
+  }
+
+  #ic-cursor-ring.is-hover {
+    --ring-scale: 1.36;
+    border-color: rgba(255,114,78,.78);
+    background: radial-gradient(circle, rgba(255,93,59,.16) 0 15%, transparent 19%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.055) inset,
+                0 0 22px rgba(255,93,59,.22);
+  }
+
+  #ic-cursor-ring.is-hover::before {
+    transform: scale(.66);
+    opacity: .78;
+  }
+
+  #ic-cursor-pointer.is-down {
+    --cursor-scale: .82;
+  }
+
+  #ic-cursor-ring.is-down {
+    --ring-scale: .72;
+    border-color: rgba(255,215,194,.92);
+    background: rgba(255,93,59,.22);
+    box-shadow: 0 0 24px rgba(255,93,59,.36);
+  }
+
+  #ic-cursor-ring.is-disabled {
+    border-color: rgba(148,163,184,.56);
+    background: rgba(148,163,184,.08);
+    box-shadow: none;
+  }
+
+  #ic-cursor-ring.is-disabled::after {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 14px;
+    width: 15px;
+    height: 1.5px;
+    border-radius: 2px;
+    background: rgba(203,213,225,.78);
+    transform: rotate(-42deg);
+  }
+}
+
+@media (pointer: coarse) {
+  #ic-cursor-pointer,
+  #ic-cursor-ring {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ic-cursor-pointer,
+  #ic-cursor-ring,
+  #ic-cursor-pointer *,
+  #ic-cursor-ring * {
+    transition-duration: .01ms !important;
+  }
+}

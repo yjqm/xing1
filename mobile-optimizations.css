@@ -1,0 +1,282 @@
+/* =========================================================================
+ * mobile-optimizations.css
+ * 统一补齐手机端适配（2026-10-11）
+ * 在 index.html / app.html 中最后加载，保证覆盖前面样式。
+ * ========================================================================= */
+
+/* ---------- 通用：防止图片/画布/表格撑破屏幕 ---------- */
+img, video, canvas, svg, iframe, table {
+  max-width: 100%;
+  height: auto;
+}
+pre, code { word-break: break-word; white-space: pre-wrap; }
+
+/* ---------- 平板 / 大手机横屏 (≤768px) ---------- */
+@media (max-width: 768px) {
+  /* 主布局：取消左侧 sidebar 占位，内容占满 */
+  .main-content,
+  .main-content.expanded {
+    left: 0 !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+
+  /* topbar 更紧凑 */
+  :root { --topbar-h: 50px; }
+  .topbar {
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .topbar-search {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 10px;
+    gap: 6px;
+  }
+  .topbar-search input {
+    min-width: 0;
+  }
+  .topbar-actions {
+    gap: 2px;
+  }
+  .topbar-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+  .topbar-btn {
+    padding: 6px 8px;
+  }
+
+  /* 页面内边距缩小 */
+  .page {
+    padding: 16px 14px;
+  }
+  .page-header {
+    margin-bottom: 16px;
+  }
+  .page-title {
+    font-size: 1.5rem;
+  }
+  .page-subtitle {
+    font-size: 0.85rem;
+  }
+
+  /* dashboard 侧边栏不再固定 320px，改为单列堆叠 */
+  .dashboard-content {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+  .side-stack {
+    width: 100%;
+  }
+
+  /* 网格统一单列，避免小屏挤压 */
+  .stats-grid,
+  .courses-grid,
+  .lab-grid,
+  .profile-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 卡片/表格类容器可横向滚动 */
+  .course-list,
+  .role-table-wrap,
+  .community-list,
+  .kp-layout,
+  .code-demo-dual,
+  .sort-dual-wrap {
+    overflow-x: auto;
+    min-width: 0;
+  }
+
+  /* 内容卡片内边距调整 */
+  .content-card,
+  .stat-card {
+    padding: 14px;
+  }
+
+  /* AI 面板已经 92vw/100%，这里只补安全区 */
+  .ai-side-panel {
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  /* AI 浮动按钮缩小，隐藏文字 */
+  .ai-float-btn {
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    padding: 12px;
+    border-radius: 50%;
+  }
+  .ai-float-btn .ai-float-label {
+    display: none;
+  }
+
+  /* 弹窗宽度 */
+  .modal,
+  .role-detail-card,
+  .lt-modal-card {
+    width: 92vw;
+    max-width: none;
+    padding: 1.25rem;
+    margin: 16px;
+  }
+
+  /* 表单、按钮触屏友好 */
+  button, .nav-item, .topbar-btn, .nav-btn,
+  .course-item, .post-action-btn, .stat-card,
+  .ai-float-btn, .modal-btn, .modal-x,
+  .fn-tab, .physics-btn, .chat-restart {
+    cursor: pointer;
+  }
+
+  /* 段落避免单个字换行 */
+  p, .recent-empty, .demo-desc, .course-desc {
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ---------- 手机竖屏 (≤620px) ---------- */
+@media (max-width: 620px) {
+  .page {
+    padding: 14px 12px;
+  }
+  .page-title {
+    font-size: 1.35rem;
+  }
+
+  /* 最近学习空态文字不再挤成竖条 */
+  .recent-empty {
+    padding: 18px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* 统计卡内部布局 */
+  .stat-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+  .stat-body h3 {
+    font-size: 1.4rem;
+  }
+  .stat-body p {
+    font-size: 0.78rem;
+  }
+
+  /* 课程卡片图文垂直堆叠 */
+  .course-select-card,
+  .subject-course-card {
+    flex-direction: column;
+  }
+
+  /* 公式区 KaTeX 不溢出 */
+  .katex-display {
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+}
+
+/* ---------- 小屏手机 (≤480px) ---------- */
+@media (max-width: 480px) {
+  .page {
+    padding: 12px 10px;
+  }
+  .page-title {
+    font-size: 1.25rem;
+  }
+
+  /* topbar 搜索再收紧 */
+  .topbar-search {
+    padding: 4px 8px;
+  }
+  .topbar-search svg {
+    width: 16px;
+    height: 16px;
+  }
+  .topbar-search input::placeholder {
+    font-size: 0.75rem;
+  }
+
+  /* 按钮尺寸保证可点击 */
+  .btn-go, .modal-btn, .nav-btn, .topbar-btn {
+    min-height: 40px;
+  }
+}
+
+/* ---------- 首页专用 (index.html 内联加载同一份) ---------- */
+@media (max-width: 768px) {
+  .hero h1 {
+    font-size: 2rem;
+  }
+  .hero p {
+    font-size: 0.95rem;
+  }
+  .hero-cta {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .hero-cta .btn-go {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 560px) {
+  .nav {
+    padding: 0.75rem 1rem;
+  }
+  .nav-brand {
+    font-size: 0.9rem;
+    gap: 0.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nav-brand-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+  .nav-actions {
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+  .nav-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+  }
+  .hero {
+    padding: 4.5rem 1rem 2.5rem;
+  }
+  .hero h1 {
+    font-size: 1.7rem;
+  }
+  .hero p {
+    font-size: 0.9rem;
+  }
+  .hero-stats {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .hero-stat {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .nav-brand {
+    max-width: 120px;
+  }
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+  .hero-cta .btn-go {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+}

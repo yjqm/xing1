@@ -1,0 +1,2361 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="数据结构可视化平台 — 在浏览器中可视化演示栈、队列、二叉树与图等数据结构" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>C//RUN — 数据结构可视化平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e14;
+  --bg-elevated:#0f1419;
+  --bg-hover:#1a1f2a;
+  --bg-base:#0f1419;
+  --line-soft:#1e2533;
+  --ink:#d7dae0;
+  --ink-muted:#6c7380;
+  --ink-faint:#3a4150;
+  --amber:#ffb454;
+  --amber-dim:#cc9030;
+  --ok:#7fd962;
+  --err:#ff5c5c;
+  --font-mono:'JetBrains Mono','IBM Plex Mono','Fira Code',monospace;
+  --font-sans:'Noto Sans SC','IBM Plex Mono',sans-serif;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-mono);
+  font-size:13px;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0,rgba(255,255,255,.012) 1px,transparent 1px,transparent 3px);
+  mix-blend-mode:overlay;
+}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--ink-faint);border:2px solid var(--bg);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:#3a4150}
+::-webkit-scrollbar-corner{background:var(--bg)}
+::selection{background:rgba(255,180,84,.3);color:#fff}
+button{font-family:var(--font-mono);cursor:pointer;border:none;background:none;color:inherit;font-size:inherit;outline:none}
+button:focus-visible{outline:1px solid var(--amber);outline-offset:2px;border-radius:2px}
+textarea{font-family:var(--font-mono);resize:none;outline:none}
+/* Layout */
+#app{display:flex;flex-direction:column;height:100vh;background:var(--bg)}
+/* Header */
+.header{display:flex;align-items:center;height:44px;padding:0 16px;background:var(--bg-elevated);border-bottom:1px solid var(--line-soft);flex-shrink:0;gap:16px;z-index:10}
+.header-logo{display:flex;align-items:center;gap:8px;text-decoration:none}
+.header-logo svg{width:22px;height:22px;flex-shrink:0}
+.header-logo-text{font-size:15px;font-weight:800;letter-spacing:1px;color:var(--ok)}
+.header-logo-sub{font-size:9px;color:var(--ink-muted);letter-spacing:.5px;text-transform:uppercase;margin-top:2px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.header-badge{font-size:9px;color:var(--ink-muted);background:var(--bg-hover);padding:2px 8px;border-radius:3px;border:1px solid var(--line-soft);display:flex;align-items:center;gap:4px}
+#btn-record{cursor:pointer;font-size:9px;color:var(--ink-muted);background:var(--bg-hover);padding:2px 8px;border-radius:3px;border:1px solid var(--line-soft);display:flex;align-items:center;gap:6px;transition:all .15s}
+#btn-record:hover{border-color:var(--amber);color:var(--ink)}
+#btn-record .rec-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);transition:background .15s;flex-shrink:0}
+#btn-record.recording{border-color:rgba(255,92,92,.55);color:var(--err);background:rgba(255,92,92,.1)}
+#btn-record.recording .rec-dot{background:var(--err);box-shadow:0 0 6px var(--err);animation:recBlink 1.1s ease-in-out infinite}
+@keyframes recBlink{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* Main layout：左窄运行栏 | 结构面板 | 右侧可视化舞台 */
+.main{display:flex;flex:1;overflow:hidden}
+.runner-col{width:400px;min-width:330px;display:flex;flex-direction:column;flex-shrink:0;border-right:1px solid var(--line-soft);background:var(--bg-base)}
+.runner-col .toolbar{overflow-x:auto}
+.runner-col .editor-wrap{flex:1;min-height:0}
+.runner-col .output-panel{flex:0 0 210px}
+.play-col{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+
+/* Splitter：运行板块 ↔ 可视化板块 拖拽条 */
+.splitter{width:6px;flex-shrink:0;cursor:col-resize;background:var(--line-soft);position:relative;z-index:6;transition:background .15s}
+.splitter:hover,.splitter.dragging{background:var(--amber)}
+.splitter::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:2px;height:26px;border-radius:2px;background:var(--ink-faint);transition:background .15s}
+.splitter:hover::after,.splitter.dragging::after{background:var(--bg-base)}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;height:38px;padding:0 10px;background:var(--bg-elevated);border-bottom:1px solid var(--line-soft);flex-shrink:0;gap:2px;overflow-x:auto}
+.toolbar-group{display:flex;align-items:center;gap:2px;padding:0 6px}
+.toolbar-group+.toolbar-group{border-left:1px solid var(--line-soft)}
+.tb-btn{display:flex;align-items:center;gap:5px;height:26px;padding:0 8px;font-size:11px;font-weight:600;border-radius:3px;color:var(--ink-muted);transition:all .12s;white-space:nowrap}
+.tb-btn:hover{color:var(--ink);background:var(--bg-hover)}
+.tb-btn.primary{background:var(--amber);color:#0a0e14}
+.tb-btn.primary:hover{background:#ffc66a}
+.tb-btn.primary:active{background:var(--amber-dim)}
+.tb-btn.danger:hover{color:var(--err)}
+.tb-btn svg{width:13px;height:13px;flex-shrink:0}
+.tb-btn .label{display:inline}
+.tb-sep{width:1px;height:16px;background:var(--line-soft);margin:0 4px}
+
+/* Editor */
+.editor-wrap{flex:1;overflow:hidden;position:relative}
+#editor-container{width:100%;height:100%}
+
+/* Input panel (stdin) */
+.input-panel{border-top:1px solid var(--line-soft);flex-shrink:0;background:var(--bg-elevated)}
+.input-header{display:flex;align-items:center;height:30px;padding:0 12px;cursor:pointer;gap:6px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted);user-select:none}
+.input-header:hover{color:var(--ink)}
+.input-header svg{width:12px;height:12px;transition:transform .2s}
+.input-header svg.rotated{transform:rotate(90deg)}
+.input-body{transition:height .2s,opacity .2s;overflow:hidden}
+.input-body.collapsed{height:0;opacity:0;padding:0}
+.input-body.expanded{height:110px;opacity:1}
+#stdin-input{width:100%;height:100%;padding:8px 12px;background:var(--bg);color:var(--ink);border:none;font-size:12px;line-height:1.6;tab-size:4}
+#stdin-input::placeholder{color:var(--ink-faint)}
+
+/* Output panel */
+.output-panel{display:flex;flex-direction:column;flex:1;min-height:0;background:var(--bg-base)}
+.output-tabs{display:flex;align-items:center;height:34px;padding:0 8px;background:var(--bg-elevated);border-bottom:1px solid var(--line-soft);flex-shrink:0;gap:0}
+.otab{display:flex;align-items:center;gap:5px;height:100%;padding:0 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted);transition:color .12s;position:relative;border-bottom:2px solid transparent}
+.otab:hover{color:var(--ink)}
+.otab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.otab svg{width:11px;height:11px}
+.otab-badge{font-size:8px;font-weight:700;padding:0 4px;border-radius:2px;background:var(--bg-hover);color:var(--ink-faint)}
+.otab.active .otab-badge{background:rgba(255,180,84,.15);color:var(--amber)}
+.output-status{margin-left:auto;display:flex;align-items:center;gap:8px;padding-right:4px;font-size:9px;color:var(--ink-faint)}
+.output-status .ok{color:var(--ok)}
+.output-status .err{color:var(--err)}
+.output-content{flex:1;overflow:auto;position:relative;min-height:0}
+.output-content pre{margin:0;padding:10px 14px;font-family:var(--font-mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word;min-height:100%}
+.output-content pre.out{border-left:2px solid rgba(255,180,84,.2);color:var(--ink)}
+.output-content pre.err{border-left:2px solid rgba(255,92,92,.4);color:var(--err)}
+.output-content pre.compile{border-left:2px solid rgba(255,180,84,.4);color:var(--amber)}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--ink-faint)}
+.empty-state .prompt{font-size:28px;color:rgba(255,180,84,.25)}
+.empty-state .hint{font-size:11px}
+
+/* Examples drawer */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;opacity:0;pointer-events:none;transition:opacity .25s}
+.drawer-overlay.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:340px;background:var(--bg-elevated);border-right:1px solid var(--line-soft);z-index:101;transform:translateX(-100%);transition:transform .3s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column}
+.drawer.open{transform:translateX(0)}
+.drawer-header{display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;border-bottom:1px solid var(--line-soft);flex-shrink:0}
+.drawer-header h2{font-size:13px;font-weight:700}
+.drawer-close{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;color:var(--ink-muted)}
+.drawer-close:hover{background:var(--bg-hover);color:var(--ink)}
+.drawer-body{flex:1;overflow-y:auto;padding:8px}
+.example-card{display:block;width:100%;padding:10px 12px;border-radius:4px;text-align:left;margin-bottom:4px;transition:background .12s}
+.example-card:hover{background:var(--bg-hover)}
+.example-card-title{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:2px;display:flex;align-items:center;gap:6px}
+.example-card-desc{font-size:10px;color:var(--ink-muted)}
+.example-tag{font-size:8px;font-weight:600;padding:1px 5px;border-radius:2px;background:rgba(255,180,84,.12);color:var(--amber);text-transform:uppercase;letter-spacing:.3px;margin-left:auto}
+
+/* ==== 代码结构可视化面板 ==== */
+.viz-col{width:300px;min-width:260px;display:flex;flex-direction:column;border-left:1px solid var(--line-soft);flex-shrink:0;background:var(--bg-base)}
+.viz-col.collapsed{display:none}
+.viz-header{display:flex;align-items:center;height:34px;padding:0 12px;background:var(--bg-elevated);border-bottom:1px solid var(--line-soft);flex-shrink:0;gap:6px}
+.viz-header svg{width:13px;height:13px;color:var(--amber)}
+.viz-header h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink)}
+.viz-header .viz-sub{margin-left:auto;font-size:8px;color:var(--ok);display:flex;align-items:center;gap:4px;font-weight:600}
+.viz-header .viz-sub::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.viz-stats{display:flex;background:var(--bg-elevated);border-bottom:1px solid var(--line-soft);flex-shrink:0}
+.viz-stat{flex:1;text-align:center;font-size:9px;color:var(--ink-muted);line-height:1.25;padding:6px 0;border-right:1px solid var(--line-soft)}
+.viz-stat:last-child{border-right:none}
+.viz-stat b{display:block;font-size:15px;font-weight:800;color:var(--ink);font-family:var(--font-mono);line-height:1.1}
+.viz-tree{flex:1;overflow:auto;padding:8px 6px 24px;min-height:0}
+.viz-root{display:flex;flex-direction:column;gap:4px}
+.viz-group{margin-bottom:4px}
+.viz-group-head{display:flex;align-items:center;gap:6px;height:24px;padding:0 6px;cursor:pointer;border-radius:3px;color:var(--ink-muted)}
+.viz-group-head:hover{background:var(--bg-hover);color:var(--ink)}
+.viz-group-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.viz-group-count{font-size:9px;color:var(--ink-faint);background:var(--bg-hover);padding:0 5px;border-radius:8px}
+.viz-group-list{padding-left:6px;margin-top:2px}
+.viz-group-list.collapsed{display:none}
+.viz-leaf{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px;cursor:pointer;font-size:11.5px;line-height:1.35}
+.viz-leaf:hover{background:var(--bg-hover)}
+.viz-leaf-text{color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.viz-line{font-size:9px;color:var(--ink-faint);flex-shrink:0;font-variant-numeric:tabular-nums}
+.viz-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.viz-dot.include{background:var(--amber)}
+.viz-dot.define{background:#c792ea}
+.viz-dot.var{background:var(--ok)}
+.viz-dot.typedef{background:#82aaff}
+.viz-dot.prototype{background:#82aaff}
+.viz-dot.func{background:var(--amber)}
+.viz-dot.param{background:#5c6470}
+.viz-dot.ctrl{background:#56b6c2}
+.viz-dot.case{background:#e5c07b}
+.viz-leaf.include .viz-leaf-text{color:var(--amber)}
+.viz-leaf.define .viz-leaf-text{color:#c792ea}
+.viz-node{margin:2px 0}
+.viz-func-head{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:3px;cursor:pointer;background:rgba(255,180,84,.06);border:1px solid rgba(255,180,84,.12)}
+.viz-func-head:hover{background:rgba(255,180,84,.12)}
+.viz-caret{font-size:9px;color:var(--ink-muted);width:10px;text-align:center;flex-shrink:0;transition:transform .15s}
+.viz-func-sig{display:flex;align-items:baseline;gap:0;flex:1;min-width:0;overflow:hidden}
+.viz-ret{color:var(--ink-muted);font-size:10px;white-space:nowrap}
+.viz-fn-name{color:var(--amber);font-weight:700;font-size:12px}
+.viz-params{color:var(--ink-muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.viz-func-body{padding-left:13px;margin-left:5px;border-left:1px solid var(--line-soft);margin-top:2px}
+.viz-func-body.collapsed{display:none}
+.viz-params-list{margin:2px 0}
+.viz-controls{display:flex;flex-direction:column;gap:1px}
+.viz-control{display:flex;align-items:center;gap:6px;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:11px}
+.viz-control:hover{background:var(--bg-hover)}
+.viz-ctl-label{font-family:var(--font-mono);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.viz-control.if .viz-ctl-label{color:var(--ok)}
+.viz-control.else .viz-ctl-label{color:var(--ink-muted)}
+.viz-control.for .viz-ctl-label,.viz-control.while .viz-ctl-label,.viz-control.do .viz-ctl-label{color:#56b6c2}
+.viz-control.switch .viz-ctl-label,.viz-control.case .viz-ctl-label{color:#e5c07b}
+.viz-child{margin-left:0;padding-left:9px;border-left:1px solid var(--line-soft);margin-top:1px}
+.viz-empty{color:var(--ink-faint);font-size:11px;text-align:center;padding:32px 10px}
+.tb-btn.active{color:var(--amber);background:rgba(255,180,84,.12)}
+
+/* Viz tabs (结构树 / 关系图) */
+.viz-tabs{display:flex;background:var(--bg-elevated);border-bottom:1px solid var(--line-soft);flex-shrink:0}
+.viz-tab{flex:1;height:28px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted);transition:color .12s,background .12s}
+.viz-tab:hover{color:var(--ink);background:var(--bg-hover)}
+.viz-tab.active{color:var(--amber);background:rgba(255,180,84,.1);box-shadow:inset 0 -2px 0 var(--amber)}
+
+/* Graph view */
+.viz-graph{flex:1;min-height:0;overflow:hidden;position:relative;display:none}
+.viz-col.show-graph .viz-tree{display:none}
+.viz-col.show-graph .viz-graph{display:block}
+.viz-svg{width:100%;height:100%;display:block}
+.gnode{transform-box:fill-box;transform-origin:center;opacity:0;animation:popIn .45s cubic-bezier(.2,.8,.3,1) forwards}
+.gnode-circle{fill:var(--bg-elevated);stroke:var(--amber);stroke-width:2;transition:fill .12s,stroke-width .12s}
+.gnode .gnode-label{fill:var(--ink);font-family:var(--font-mono);font-size:11px;font-weight:600;paint-order:stroke;stroke:var(--bg);stroke-width:3px}
+.gnode-ext .gnode-circle{stroke:var(--ink-faint);stroke-dasharray:3 2}
+.gnode-ext .gnode-label{fill:var(--ink-muted)}
+.gnode.hot .gnode-circle{fill:rgba(255,180,84,.2);stroke-width:3}
+.gedge{fill:none;stroke:var(--amber);stroke-width:1.6;opacity:0;stroke-dasharray:5 5;animation:edgeIn .5s ease forwards, flow 1.4s linear infinite}
+.gedge-ext{stroke:var(--ink-faint);stroke-dasharray:2 4}
+.gedge.lit{stroke:var(--ok)!important;stroke-width:2.6!important;opacity:1!important;animation:none}
+.gedge.lit.gedge-ext{stroke:#82aaff!important}
+.gedge-arrow{fill:context-stroke}
+@keyframes popIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+@keyframes edgeIn{from{opacity:0}to{opacity:.85}}
+@keyframes flow{to{stroke-dashoffset:-20}}
+
+/* Loading spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:12px;height:12px;border:2px solid var(--ink-faint);border-top-color:var(--amber);border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+
+/* ==== 结构可视化舞台（栈 / 队列 playground）==== */
+.play-tools{display:flex;flex-wrap:wrap;gap:10px;padding:10px 12px;background:var(--bg-elevated);border-bottom:1px solid var(--line-soft);flex-shrink:0}
+.play-tool{flex:1 1 168px;display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line-soft);border-radius:7px;background:var(--bg);transition:border-color .15s,background .15s}
+.play-tool:hover{border-color:rgba(255,180,84,.45);background:var(--bg-hover)}
+.play-tool svg{width:21px;height:21px;color:var(--amber);flex-shrink:0}
+.play-tool-info{flex:1;min-width:0}
+.play-tool-info b{display:block;font-size:12px;color:var(--ink);letter-spacing:.3px}
+.play-tool-info span{font-size:9px;color:var(--ink-muted);letter-spacing:.4px}
+.play-add{height:27px;padding:0 11px;font-size:11px;font-weight:700;border-radius:4px;background:rgba(255,180,84,.14);color:var(--amber);border:1px solid rgba(255,180,84,.35);transition:all .12s;white-space:nowrap;flex-shrink:0}
+.play-add:hover{background:var(--amber);color:#0a0e14}
+.play-banner{display:flex;align-items:center;gap:10px;margin:9px 12px 0;padding:7px 11px;border-radius:5px;background:rgba(255,180,84,.09);border:1px solid rgba(255,180,84,.32);font-size:11px;color:var(--amber);flex-shrink:0}
+.play-banner[hidden]{display:none}
+#play-banner-cancel{margin-left:auto;font-size:10px;font-weight:700;color:var(--amber);border:1px solid rgba(255,180,84,.45);border-radius:3px;padding:2px 9px;height:22px;background:transparent}
+#play-banner-cancel:hover{background:rgba(255,180,84,.2)}
+.play-stage{flex:1;min-height:0;overflow:auto;position:relative;padding:14px 12px}
+.play-stage-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:var(--ink-faint);font-size:12px;text-align:center;padding:20px;pointer-events:none}
+.play-stage-empty[hidden]{display:none}
+.play-stage-empty-icon{font-size:36px;color:rgba(255,180,84,.22);line-height:1}
+.play-stage-empty .hint{font-size:10px;color:var(--ink-faint);max-width:460px;line-height:1.7}
+.struct-card{position:absolute;width:200px;border:1px solid var(--line-soft);border-radius:9px;background:var(--bg-elevated);overflow:hidden;animation:cardIn .35s cubic-bezier(.2,.8,.3,1);display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s;cursor:grab;will-change:left,top}
+.struct-card.dragging{cursor:grabbing;box-shadow:0 0 0 1px var(--amber),0 14px 40px rgba(0,0,0,.55);user-select:none;z-index:50}
+.struct-card.kind-queue{width:270px}
+.struct-card:hover{border-color:rgba(255,180,84,.4)}
+.struct-card.selected{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),0 8px 26px rgba(0,0,0,.45)}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+.struct-head{display:flex;align-items:center;gap:6px;padding:8px 9px;border-bottom:1px solid var(--line-soft);background:var(--bg)}
+.struct-head svg{width:14px;height:14px;color:var(--amber);flex-shrink:0}
+.struct-title{font-size:11.5px;font-weight:700;color:var(--ink);flex:1;letter-spacing:.3px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.struct-rename{width:100%;font-size:12px;font-weight:700;color:var(--ink);background:var(--bg-base);border:1px solid var(--amber);border-radius:4px;padding:1px 4px;outline:none;font-family:inherit}
+.struct-tag{font-size:8px;font-weight:700;color:var(--amber);background:rgba(255,180,84,.12);border:1px solid rgba(255,180,84,.25);padding:1px 5px;border-radius:3px;letter-spacing:.5px}
+.struct-close{width:20px;height:20px;border-radius:3px;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;flex-shrink:0}
+.struct-close:hover{color:var(--err);background:var(--bg-hover)}
+.struct-actions{display:flex;gap:5px;padding:7px 8px;border-bottom:1px solid var(--line-soft)}
+.sa-btn{flex:1;height:25px;font-size:10.5px;font-weight:700;border-radius:4px;border:1px solid var(--line-soft);color:var(--ink-muted);transition:all .12s;background:var(--bg)}
+.sa-btn:hover{border-color:var(--amber);color:var(--amber);background:rgba(255,180,84,.08)}
+.sa-btn:disabled{opacity:.35;cursor:not-allowed;border-color:var(--line-soft);color:var(--ink-faint);background:none}
+.sa-btn:disabled:hover{border-color:var(--line-soft);color:var(--ink-faint);background:none}
+.struct-marker{display:flex;justify-content:space-between;align-items:center;padding:4px 10px;font-size:8.5px;font-weight:700;letter-spacing:.5px;color:var(--ink-faint);background:var(--bg);flex-shrink:0}
+.struct-marker .m-top{color:var(--amber)}
+.struct-body{min-height:88px;padding:10px;display:flex;gap:7px;position:relative;background:var(--bg-base)}
+.kind-stack .struct-body{flex-direction:column;align-items:stretch}
+.kind-stack .struct-body .el-chip{width:100%;justify-content:center}
+.kind-queue .struct-body{flex-direction:row;align-items:center;overflow-x:auto;min-height:58px}
+.struct-empty{color:var(--ink-faint);font-size:10px;margin:auto;letter-spacing:1px}
+.el-chip{display:inline-flex;align-items:center;gap:4px;height:30px;min-width:52px;max-width:160px;padding:0 10px;border-radius:6px;font-size:12px;font-weight:800;color:#0a0e14;font-family:var(--font-mono);position:relative;flex-shrink:0;user-select:none;animation:chipIn .25s ease;box-shadow:inset 0 -2px 0 rgba(0,0,0,.18),0 2px 7px rgba(0,0,0,.35)}
+.kind-queue .el-chip{min-width:58px}
+.kind-list .struct-body{flex-direction:row;align-items:center;overflow-x:auto;min-height:58px;gap:4px;flex-wrap:nowrap}
+.kind-list .struct-body .el-chip{cursor:grab;min-width:52px}
+.kind-list .struct-body .el-chip:active{cursor:grabbing}
+.ll-head{font-size:9px;font-weight:800;letter-spacing:1px;color:var(--amber);background:rgba(255,180,84,.12);border:1px solid rgba(255,180,84,.25);padding:3px 6px;border-radius:4px;flex-shrink:0}
+.ll-arrow{color:var(--amber);font-size:15px;font-weight:800;flex-shrink:0;user-select:none;padding:0 1px}
+.ll-null{width:38px;height:30px;border:1.5px dashed var(--ink-faint);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--ink-faint);flex-shrink:0;font-family:var(--font-mono)}
+.ll-empty{color:var(--ink-faint);font-size:10px;letter-spacing:1px;margin:0 2px}
+.ll-node:hover .node-rm{display:flex}
+@keyframes chipIn{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}
+.el-chip .el-rm{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:3px;border-radius:50%;background:rgba(0,0,0,.28);color:#0a0e14;font-size:9px;font-weight:900;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s}
+.el-chip:hover .el-rm{opacity:1}
+.play-bottom{flex-shrink:0;border-top:1px solid var(--line-soft);background:var(--bg-elevated);padding:9px 12px 11px;display:flex;flex-direction:column;gap:8px}
+.play-wait-head{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--ink-muted);text-transform:uppercase}
+.play-wait-count{font-size:9px;color:var(--ink-faint);background:var(--bg-hover);padding:1px 8px;border-radius:10px;margin-left:auto}
+.play-waiting{display:flex;flex-wrap:wrap;gap:8px;min-height:36px;align-items:center}
+.play-wait-empty{font-size:10px;color:var(--ink-faint);padding:8px 2px}
+.play-input-row{display:flex;gap:8px}
+#play-input{flex:1;height:32px;padding:0 11px;background:var(--bg);border:1px solid var(--line-soft);border-radius:4px;color:var(--ink);font-family:var(--font-mono);font-size:12px}
+#play-input::placeholder{color:var(--ink-faint)}
+#play-input:focus{border-color:var(--amber)}
+#play-add-el{height:32px;padding:0 14px}
+.play-waiting.picking .el-chip{cursor:pointer;transition:transform .12s;animation:pulsePick 1.1s ease-in-out infinite}
+.play-waiting.picking .el-chip:hover{transform:scale(1.1)}
+.play-waiting.picking .el-chip .el-rm{display:none}
+
+/* 二叉树 / 图 卡片 */
+.struct-card.kind-tree,.struct-card.kind-graph{width:340px}
+.kind-tree .struct-body,.kind-graph .struct-body{padding:0;overflow:hidden}
+.kind-tree .struct-body{overflow:auto}
+.tree-edges,.graph-edges{position:absolute;left:0;top:0;pointer-events:none;z-index:0}
+.tree-edge{stroke:var(--line-soft);stroke-width:2}
+.graph-edge{stroke:rgba(130,170,255,.75);stroke-width:2;pointer-events:stroke;cursor:pointer;transition:stroke .12s,stroke-width .12s}
+.graph-edge:hover{stroke:var(--err);stroke-width:4}
+.graph-edge.hot{stroke:var(--amber);stroke-width:3}
+.tree-node,.graph-node{position:absolute;width:46px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0a0e14;font-family:var(--font-mono);box-shadow:inset 0 -2px 0 rgba(0,0,0,.18),0 2px 7px rgba(0,0,0,.4);z-index:1;user-select:none;overflow:hidden}
+.tree-node{text-overflow:ellipsis;white-space:nowrap;cursor:grab}
+.tree-node:active{cursor:grabbing}
+.graph-node{cursor:grab}
+.graph-node:active{cursor:grabbing}
+.kind-stack .struct-body .el-chip,.kind-queue .struct-body .el-chip{cursor:grab}
+.kind-stack .struct-body .el-chip:active,.kind-queue .struct-body .el-chip:active{cursor:grabbing}
+.graph-node.sel{outline:2px solid var(--amber);box-shadow:0 0 0 2px var(--amber),0 2px 7px rgba(0,0,0,.4)}
+.node-add{position:absolute;bottom:-9px;width:17px;height:17px;border-radius:50%;background:var(--bg);border:1px solid var(--amber);color:var(--amber);font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3}
+.node-add.left{left:-4px}.node-add.right{right:-4px}
+.node-add:disabled{opacity:.2;cursor:not-allowed;border-color:var(--line-soft);color:var(--ink-faint)}
+.node-rm{position:absolute;top:-7px;right:-7px;width:15px;height:15px;border-radius:50%;background:var(--bg);border:1px solid var(--err);color:var(--err);font-size:9px;line-height:1;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:3}
+.tree-node:hover .node-rm,.graph-node:hover .node-rm{display:flex}
+.node-rm:hover{background:var(--err);color:#0a0e14}
+.kind-graph .struct-body.connect{cursor:crosshair}
+.kind-graph .struct-body.connect .graph-node{cursor:pointer}
+.sa-btn.active{background:var(--amber);color:#0a0e14;border-color:var(--amber)}
+@keyframes pulsePick{0%,100%{box-shadow:0 0 0 0 rgba(255,180,84,.5),inset 0 -2px 0 rgba(0,0,0,.18)}50%{box-shadow:0 0 0 6px rgba(255,180,84,0),inset 0 -2px 0 rgba(0,0,0,.18)}}
+.fly-clone{pointer-events:none;margin:0;transform:none;animation:none}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);background:rgba(255,180,84,.12);border:1px solid rgba(255,180,84,.45);color:var(--amber);font-size:11px;padding:8px 16px;border-radius:6px;z-index:9998;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ==== 记录模式：生成的 C 代码弹窗 ==== */
+.code-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;opacity:0;pointer-events:none;transition:opacity .25s}
+.code-modal-overlay.open{opacity:1;pointer-events:auto}
+.code-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-46%) scale(.96);width:min(680px,92vw);max-height:82vh;background:var(--bg-elevated);border:1px solid var(--line-soft);border-radius:10px;z-index:1001;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;box-shadow:0 18px 60px rgba(0,0,0,.6)}
+.code-modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.code-modal-head{display:flex;align-items:center;justify-content:space-between;height:42px;padding:0 14px;border-bottom:1px solid var(--line-soft);flex-shrink:0}
+.code-modal-head span{font-size:12px;font-weight:700;color:var(--amber);letter-spacing:.5px}
+.code-modal-close{width:26px;height:26px;border-radius:4px;color:var(--ink-muted);font-size:16px;line-height:1}
+.code-modal-close:hover{color:var(--err);background:var(--bg-hover)}
+.code-modal-body{flex:1;overflow:auto;margin:0;padding:14px 16px;font-family:var(--font-mono);font-size:12px;line-height:1.7;white-space:pre;color:var(--ink);background:var(--bg-base)}
+.code-modal-foot{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line-soft);flex-shrink:0}
+.code-modal-hint{font-size:9px;color:var(--ink-faint)}
+
+/* ==== 自动可视化（左侧粘贴代码 → 右侧自动生成结构并逐步模拟） ==== */
+.play-main{flex:1;min-height:0;display:flex}
+.auto-panel{width:320px;min-width:250px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line-soft);background:var(--bg-elevated)}
+.auto-panel[hidden]{display:none}
+.auto-head{display:flex;align-items:center;gap:6px;height:34px;padding:0 10px;background:var(--bg);border-bottom:1px solid var(--line-soft);flex-shrink:0}
+.auto-head svg{width:14px;height:14px;color:var(--amber);flex-shrink:0}
+.auto-head-title{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--ink);flex:1}
+.auto-head-tag{font-size:8px;font-weight:700;color:var(--ok);background:rgba(127,217,98,.12);border:1px solid rgba(127,217,98,.3);padding:1px 5px;border-radius:3px;letter-spacing:.4px}
+.auto-close{width:20px;height:20px;border-radius:3px;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1}
+.auto-close:hover{color:var(--err);background:var(--bg-hover)}
+.auto-script{flex:1;min-height:120px;width:100%;padding:10px 12px;background:var(--bg-base);border:none;border-bottom:1px solid var(--line-soft);color:var(--ink);font-family:var(--font-mono);font-size:12px;line-height:1.7;tab-size:4;resize:none}
+.auto-script::placeholder{color:var(--ink-faint)}
+.auto-actions{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line-soft);flex-shrink:0;flex-wrap:wrap}
+.auto-btn{height:25px;padding:0 10px;font-size:10.5px;font-weight:700;border-radius:4px;border:1px solid var(--line-soft);color:var(--ink-muted);transition:all .12s;background:var(--bg)}
+.auto-btn:hover{border-color:var(--amber);color:var(--amber);background:rgba(255,180,84,.08)}
+.auto-btn:disabled{opacity:.35;cursor:not-allowed;border-color:var(--line-soft);color:var(--ink-faint);background:none}
+.auto-btn.primary{background:var(--amber);color:#0a0e14;border-color:var(--amber)}
+.auto-btn.primary:hover{background:#ffc66a;color:#0a0e14}
+.auto-btn.primary:disabled{opacity:.35;background:var(--amber);color:#0a0e14}
+.auto-prompt{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid rgba(255,180,84,.3);background:rgba(255,180,84,.08);flex-shrink:0;flex-wrap:wrap}
+.auto-prompt[hidden]{display:none}
+.auto-prompt-label{font-size:10.5px;color:var(--amber);flex:1;min-width:0;line-height:1.5}
+.auto-prompt-input{flex:1;min-width:120px;height:26px;padding:0 8px;background:var(--bg-base);border:1px solid var(--amber);border-radius:4px;color:var(--ink);font-family:var(--font-mono);font-size:12px}
+.auto-steps{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line-soft);flex-shrink:0;flex-wrap:wrap}
+.step-btn{height:26px;min-width:34px;padding:0 9px;font-size:11px;font-weight:700;border-radius:4px;border:1px solid var(--line-soft);color:var(--ink-muted);transition:all .12s;background:var(--bg);display:flex;align-items:center;gap:4px}
+.step-btn svg{width:12px;height:12px}
+.step-btn:hover:not(:disabled){border-color:var(--amber);color:var(--amber)}
+.step-btn:disabled{opacity:.35;cursor:not-allowed}
+.step-btn.play{background:rgba(127,217,98,.14);border-color:rgba(127,217,98,.4);color:var(--ok)}
+.step-btn.play:hover:not(:disabled){background:rgba(127,217,98,.25);color:var(--ok);border-color:var(--ok)}
+.step-btn.play.playing{background:var(--err);color:#0a0e14;border-color:var(--err)}
+.auto-step-info{margin-left:auto;font-size:10px;font-weight:700;color:var(--ink-muted);font-variant-numeric:tabular-nums}
+.auto-step-desc{width:100%;font-size:10px;color:var(--amber);font-family:var(--font-mono);line-height:1.5;padding:2px 0;min-height:14px}
+.auto-help{flex-shrink:0;padding:8px 10px 12px;font-size:9px;color:var(--ink-faint);line-height:1.7;border-top:1px solid var(--line-soft);overflow-y:auto;max-height:150px}
+.auto-help b{color:var(--ink-muted)}
+.auto-help code{color:var(--amber);font-family:var(--font-mono)}
+/* 步骤高亮：当前操作的结构卡片发光 */
+.struct-card.step-active{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),0 0 22px rgba(255,180,84,.45);z-index:40}
+/* 新加入元素的强调 */
+.el-chip.step-new,.tree-node.step-new,.graph-node.step-new{outline:2px solid var(--ok);outline-offset:1px;animation:stepPop .5s cubic-bezier(.2,.8,.3,1)}
+@keyframes stepPop{0%{transform:scale(.4);opacity:.2}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+
+/* Responsive */
+@media(max-width:1180px){
+  .viz-col{display:none}
+}
+@media(max-width:860px){
+  .main{flex-direction:column}
+  .runner-col{width:100%;min-width:0;border-right:none;border-bottom:1px solid var(--line-soft);height:46%}
+  .play-col{width:100%;min-width:0;border-left:none;border-top:1px solid var(--line-soft);flex:1}
+  .splitter{display:none}
+  .tb-btn .label{display:none}
+  .header-logo-sub{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <header class="header">
+    <a class="header-logo" href="#">
+      <svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" fill="#0A0B0D"/><path d="M26.6677 23.7149H8.38057V20.6496H5.33301V8.38159H26.6677V23.7149ZM8.38057 20.6496H23.6201V11.4482H8.38057V20.6496ZM16.0011 16.0021L13.8461 18.1705L11.6913 16.0021L13.8461 13.8337L16.0011 16.0021ZM22.0963 16.0008L19.9414 18.1691L17.7865 16.0008L19.9414 13.8324L22.0963 16.0008Z" fill="#32F08C"/></svg>
+      <div>
+        <div class="header-logo-text">C//RUN</div>
+        <div class="header-logo-sub">数据结构可视化平台</div>
+      </div>
+    </a>
+    <div class="header-right">
+      <button id="btn-record" title="开启记录模式：记录舞台上的操作，结束后生成完整 C 代码">
+        <span class="rec-dot"></span><span id="record-label">记录</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Playground column（右侧可视化舞台） -->
+    <div class="play-col" id="play-col">
+      <!-- 结构工具：栈 / 队列 / 二叉树 / 图 -->
+      <div class="play-tools" id="play-tools">
+        <div class="play-tool" data-kind="stack">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v4H4z"/><path d="M6 8v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><path d="M12 6v4"/></svg>
+          <div class="play-tool-info"><b>栈 Stack</b><span>后进先出 · LIFO</span></div>
+          <button class="play-add" data-kind="stack">＋ 添加</button>
+        </div>
+        <div class="play-tool" data-kind="queue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13"/><path d="M12 7l5 5-5 5"/><path d="M16 12h5"/></svg>
+          <div class="play-tool-info"><b>队列 Queue</b><span>先进先出 · FIFO</span></div>
+          <button class="play-add" data-kind="queue">＋ 添加</button>
+        </div>
+        <div class="play-tool" data-kind="tree">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.4"/><circle cx="6" cy="19" r="2.4"/><circle cx="18" cy="19" r="2.4"/><path d="M12 7.4 6 16.6"/><path d="M12 7.4 18 16.6"/></svg>
+          <div class="play-tool-info"><b>二叉树 Tree</b><span>节点 + 左右子</span></div>
+          <button class="play-add" data-kind="tree">＋ 添加</button>
+        </div>
+        <div class="play-tool" data-kind="graph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M6 9.4 12 15.6"/><path d="M18 8.4 12 15.6"/></svg>
+          <div class="play-tool-info"><b>图 Graph</b><span>节点 + 连线</span></div>
+          <button class="play-add" data-kind="graph">＋ 添加</button>
+        </div>
+        <div class="play-tool" data-kind="list">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/><path d="M7.2 12h3.6"/><path d="M14.2 12h3.6"/><path d="M21.5 12h.5"/></svg>
+          <div class="play-tool-info"><b>链表 List</b><span>head→节点→∅</span></div>
+          <button class="play-add" data-kind="list">＋ 添加</button>
+        </div>
+        <div class="play-tool play-tool-auto" data-kind="auto">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><polyline points="8 17 4 12 8 7"/><polyline points="16 7 20 12 16 17"/></svg>
+          <div class="play-tool-info"><b>自动 Auto</b><span>粘贴代码自动生成</span></div>
+          <button class="play-add" id="btn-auto-toggle" data-kind="auto">打开</button>
+        </div>
+      </div>
+      <!-- 操作提示横幅 -->
+      <div class="play-banner" id="play-banner" hidden>
+        <span id="play-banner-text"></span>
+        <button id="play-banner-cancel">取消</button>
+      </div>
+      <!-- 主体：左侧自动代码面板 + 右侧舞台 -->
+      <div class="play-main" id="play-main">
+        <!-- 自动可视化面板：粘贴代码 → 解析生成 → 逐步模拟 -->
+        <div class="auto-panel" id="auto-panel" hidden>
+          <div class="auto-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><polyline points="8 17 4 12 8 7"/><polyline points="16 7 20 12 16 17"/></svg>
+            <span class="auto-head-title">自动可视化代码</span>
+            <span class="auto-head-tag">AUTO</span>
+            <button class="auto-close" id="auto-close" title="关闭面板">×</button>
+          </div>
+          <textarea class="auto-script" id="auto-script" spellcheck="false" placeholder="在此粘贴代码，例如：&#10;Stack s;&#10;push(s, 10);&#10;push(s, 20);&#10;push(s, x);   // x 未定义 → 提示输入&#10;pop(s);"></textarea>
+          <div class="auto-actions">
+            <button class="auto-btn primary" id="auto-parse">解析生成</button>
+            <button class="auto-btn" id="auto-example">示例</button>
+            <button class="auto-btn" id="auto-clear">清空舞台</button>
+          </div>
+          <div class="auto-prompt" id="auto-prompt" hidden>
+            <span class="auto-prompt-label" id="auto-prompt-label">请输入数据：</span>
+            <input class="auto-prompt-input" id="auto-prompt-input" type="text" placeholder="输入值，回车确认" />
+            <button class="auto-btn primary" id="auto-prompt-ok">确定</button>
+            <button class="auto-btn" id="auto-prompt-cancel">取消</button>
+          </div>
+          <div class="auto-steps" id="auto-steps">
+            <button class="step-btn" id="auto-step-prev" title="上一步"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>上一步</button>
+            <button class="step-btn" id="auto-step-next" title="下一步"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>下一步</button>
+            <button class="step-btn play" id="auto-step-play" title="自动播放">▶ 播放</button>
+            <button class="step-btn" id="auto-step-reset" title="重置到初始">↺ 重置</button>
+            <span class="auto-step-info" id="auto-step-info">步骤 0/0</span>
+            <div class="auto-step-desc" id="auto-step-desc"></div>
+          </div>
+          <div class="auto-help" id="auto-help">
+            <b>可以直接粘贴真实 C 代码</b>：<code>#include</code> 头文件、<code>//</code> / <code>/* */</code> 注释、函数定义（<code>int main(){}</code>）、<code>printf/return</code> 等都会自动忽略，只识别其中的数据结构操作。<br>
+            · 声明结构：<code>Stack s;</code> <code>Queue q;</code> <code>List l;</code> <code>Tree t;</code> <code>Graph g;</code>（也支持 <code>struct Stack s;</code> <code>Stack *s;</code>）<br>
+            · 栈：<code>push(s, 值)</code> <code>pop(s)</code>　队列：<code>enqueue(q, 值)</code> <code>dequeue(q)</code><br>
+            · 链表：<code>insertHead(l, 值)</code> <code>insertTail(l, 值)</code> <code>removeHead(l)</code> <code>removeTail(l)</code><br>
+            · 二叉树：<code>insert(t, 值)</code>（BST）<code>remove(t, 值)</code>　图：<code>addNode(g, 值)</code> <code>addEdge(g, a, b)</code><br>
+            <b>自动推断</b>：即使不写声明，只要出现 <code>push(s,…)</code> 就会按动词自动创建「栈」，<code>addEdge</code> 自动建「图」等；变量名带 <code>stack/queue/list/tree/graph</code> 也会被识别。<br>
+            <b>值</b>：数字 / <code>"字符串"</code> 自动生成元素；未定义变量名（如 <code>x</code>）会提示你输入数据。
+          </div>
+        </div>
+        <!-- 舞台 -->
+        <div class="play-stage" id="play-stage">
+          <div class="play-stage-empty" id="play-stage-empty">
+            <div class="play-stage-empty-icon">◇</div>
+            <div>点击上方「＋ 添加」创建栈 / 队列 / 二叉树 / 图（添加后可在舞台上拖动卡片自由排版）</div>
+            <div class="hint">或点「自动」工具，粘贴代码后自动生成结构并逐步模拟运行。线性结构：点卡片上的「入栈/出栈/入队/出队」，从下方等待区挑选元素。二叉树：加根节点后每节点可加左/右子节点。图：加节点后在「连线」模式下点两个节点连边，节点可直接拖拽。</div>
+          </div>
+        </div>
+      </div>
+      <!-- 底部：等待区 + 输入栏 -->
+      <div class="play-bottom">
+        <div class="play-wait-head">
+          <span>等待区</span>
+          <span class="play-wait-count" id="play-wait-count">0 个元素</span>
+        </div>
+        <div class="play-waiting" id="play-waiting"></div>
+        <div class="play-input-row">
+          <input id="play-input" type="text" maxlength="18" placeholder="输入元素内容，如 42 / Alice / node3 …" autocomplete="off" />
+          <button class="tb-btn primary" id="play-add-el">生成元素</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 记录模式：生成的 C 代码弹窗 -->
+<div class="code-modal-overlay" id="code-modal-overlay"></div>
+<div class="code-modal" id="code-modal">
+  <div class="code-modal-head">
+    <span>生成的 C 代码</span>
+    <button class="code-modal-close" id="code-modal-close" title="关闭">×</button>
+  </div>
+  <pre class="code-modal-body" id="gen-code"></pre>
+  <div class="code-modal-foot">
+    <button class="auto-btn primary" id="code-modal-copy">复制代码</button>
+    <span class="code-modal-hint">可复制到本地或任意在线 C 编译器运行</span>
+  </div>
+</div>
+
+<script>
+// ==================== STATE ====================
+const state = {
+  play: {
+    elements: [],      // 所有元素（含结构中与等待区）
+    structs: [],       // 舞台上的栈/队列/二叉树/图
+    nextElId: 1,
+    nextStructId: 1,
+    picking: null,     // {structId, mode, nodeId, side} 挑选元素时
+    graphSel: null,    // 图连线模式下已选中的源节点 id
+    animating: false,  // 飞行动画进行中
+  },
+  auto: {
+    script: '',        // 粘贴的 DSL 代码
+    decls: [],         // 解析出的结构声明 [{kind,name}]
+    steps: [],         // 解析出的操作步骤 [{op, struct, args:[raw], raw, line}]
+    cursor: -1,        // 当前已执行到的步骤下标（-1 未开始）
+    structByName: {},  // 变量名 -> struct id
+    pending: null,     // {stepIndex, argIndex, varName} 等待用户输入
+    resolvedValues: {},// 变量名 -> 用户输入的值（复用）
+    playing: false,
+    timer: null,
+  },
+  record: {
+    active: false,     // 是否处于记录模式
+    ops: [],           // 记录的操作序列（见 recordOp）
+    varCount: {},      // kind -> 已分配变量名计数
+    inputVar: {},      // 元素 id -> 输入变量名（v1/v2…）
+    inputCount: 0,     // 已分配的输入变量计数
+  },
+};
+
+// ==================== DOM REFS ====================
+const $ = (id) => document.getElementById(id);
+
+// ==================== 结构可视化舞台（栈 / 队列 playground）====================
+// 底部输入栏生成「元素」→ 留在等待区；顶部工具添加栈/队列 → 显示在舞台；
+// 入栈/入队 = 从等待区挑选元素飞入结构；出栈/出队 = 元素飞回等待区。
+const playEl = {
+  tools: $('play-tools'),
+  banner: $('play-banner'),
+  bannerText: $('play-banner-text'),
+  bannerCancel: $('play-banner-cancel'),
+  stage: $('play-stage'),
+  stageEmpty: $('play-stage-empty'),
+  waiting: $('play-waiting'),
+  waitCount: $('play-wait-count'),
+  input: $('play-input'),
+  addElBtn: $('play-add-el'),
+};
+const EL_PALETTE = ['#ffb454', '#7fd962', '#82aaff', '#c792ea', '#e5c07b', '#56b6c2', '#ff8f8f', '#89ddff'];
+
+function structById(id) { return state.play.structs.find(s => s.id === id); }
+function elementById(id) { return state.play.elements.find(e => e.id === id); }
+function elInUse(id) {
+  return state.play.structs.some(s => {
+    if (s.kind === 'stack' || s.kind === 'queue' || s.kind === 'list') return s.items.includes(id);
+    if (s.kind === 'tree' || s.kind === 'graph') return s.nodes.some(n => n.elId === id);
+    return false;
+  });
+}
+function freeElements() { return state.play.elements.filter(e => !elInUse(e.id)); }
+
+let _toastTimer = null;
+function toast(msg) {
+  let t = document.querySelector('.toast');
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ---- 元素 ----
+function addElement(label) {
+  const el = { id: 'e' + state.play.nextElId++, label, color: EL_PALETTE[state.play.elements.length % EL_PALETTE.length] };
+  state.play.elements.push(el);
+  if (state.record.active) {
+    const v = 'v' + (++state.record.inputCount);
+    state.record.inputVar[el.id] = v;
+    recordOp({ t: 'input', var: v, value: label });
+  }
+  playEl.input.value = '';
+  renderWaiting();
+  playEl.input.focus();
+}
+
+function removeElement(id) {
+  if (elInUse(id)) return;   // 结构中的元素不允许直接删除
+  const el = elementById(id);
+  if (state.record.active && el && state.record.inputVar[el.id]) {
+    recordOp({ t: 'drop', var: state.record.inputVar[el.id], value: el.label });
+    delete state.record.inputVar[el.id];  // 之后不再引用该输入
+  }
+  state.play.elements = state.play.elements.filter(e => e.id !== id);
+  renderWaiting();
+}
+
+function renderWaiting() {
+  const free = freeElements();
+  playEl.waitCount.textContent = free.length + ' 个元素';
+  playEl.waiting.innerHTML = '';
+  if (!free.length) {
+    const d = document.createElement('div'); d.className = 'play-wait-empty';
+    d.textContent = state.play.elements.length ? '所有元素都在结构中 —— 出栈 / 出队后会自动回到这里' : '暂无元素 —— 在下方输入内容并点「生成元素」';
+    playEl.waiting.appendChild(d);
+  }
+  free.forEach(el => {
+    const chip = document.createElement('div');
+    chip.className = 'el-chip'; chip.style.background = el.color; chip.dataset.id = el.id; chip.title = el.label;
+    const tx = document.createElement('span'); tx.textContent = el.label;
+    tx.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px';
+    const rm = document.createElement('span'); rm.className = 'el-rm'; rm.textContent = '×';
+    rm.addEventListener('click', (e) => { e.stopPropagation(); removeElement(el.id); });
+    chip.addEventListener('click', () => {
+      if (!state.play.picking) return;
+      const s = structById(state.play.picking.structId);
+      if (!s) { cancelPick(); return; }
+      const pick = state.play.picking;   // 先捕获，commitPick 时需用 mode
+      const card = playEl.stage.querySelector('.struct-card[data-id="' + s.id + '"]');
+      const target = card ? card.querySelector('.struct-body') : playEl.stage;
+      cancelPick();
+      animateMove(chip, target, el, () => { commitPick(s, el, pick); });
+    });
+    chip.appendChild(tx); chip.appendChild(rm);
+    playEl.waiting.appendChild(chip);
+  });
+}
+
+// ---- 结构（栈 / 队列 / 二叉树 / 图 / 链表）----
+const KIND_LABEL = { stack: '栈', queue: '队列', tree: '二叉树', graph: '图', list: '链表' };
+function addStruct(kind) {
+  const n = state.play.structs.filter(x => x.kind === kind).length + 1;
+  const base = { id: 's' + state.play.nextStructId++, kind, label: KIND_LABEL[kind] + ' ' + n };
+  // 初始级联位置（避免多卡片重叠；拖动后由 s.x/s.y 记录实际坐标）
+  const idx = state.play.structs.length;
+  const col = idx % 4, row = Math.floor(idx / 4);
+  const pos = { x: 16 + col * 360, y: 16 + row * 300 };
+  let s;
+  if (kind === 'stack' || kind === 'queue' || kind === 'list') s = { ...base, items: [], x: pos.x, y: pos.y };
+  else if (kind === 'tree') s = { ...base, nodes: [], nextNodeId: 1, x: pos.x, y: pos.y };
+  else s = { ...base, nodes: [], edges: [], nextNodeId: 1, connect: false, x: pos.x, y: pos.y };
+  state.play.structs.push(s);
+  if (state.record.active) recordOp({ t: 'create', kind, var: recordVarName(s), label: s.label });
+  cancelPick();
+  renderStage();
+  playEl.stage.scrollTo({ left: playEl.stage.scrollWidth, behavior: 'smooth' });
+}
+
+function removeStruct(id) {
+  const s = structById(id);
+  if (state.record.active && s && s._var) recordOp({ t: 'destroy', var: s._var, kind: s.kind });
+  state.play.structs = state.play.structs.filter(x => x.id !== id);
+  if (state.play.picking && state.play.picking.structId === id) cancelPick();
+  renderStage();
+}
+
+function renderStage() {
+  playEl.stageEmpty.hidden = state.play.structs.length > 0;
+  playEl.stage.querySelectorAll('.struct-card').forEach(c => c.remove());
+  state.play.structs.forEach(s => playEl.stage.appendChild(renderStructCard(s)));
+  renderWaiting();
+}
+
+const HEAD_ICON = {
+  stack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v4H4z"/><path d="M6 8v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><path d="M12 6v4"/></svg>',
+  queue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13"/><path d="M12 7l5 5-5 5"/><path d="M16 12h5"/></svg>',
+  tree: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.4"/><circle cx="6" cy="19" r="2.4"/><circle cx="18" cy="19" r="2.4"/><path d="M12 7.4 6 16.6"/><path d="M12 7.4 18 16.6"/></svg>',
+  graph: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M6 9.4 12 15.6"/><path d="M18 8.4 12 15.6"/></svg>',
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/><path d="M7.2 12h3.6"/><path d="M14.2 12h3.6"/><path d="M21.5 12h.5"/></svg>',
+};
+const TAG_TEXT = { stack: 'LIFO', queue: 'FIFO', tree: 'TREE', graph: 'GRAPH', list: 'LIST' };
+
+function renderStructCard(s) {
+  const card = document.createElement('div');
+  card.className = 'struct-card kind-' + s.kind;
+  card.dataset.id = s.id;
+  card.style.left = (s.x || 0) + 'px';
+  card.style.top = (s.y || 0) + 'px';
+
+  const head = document.createElement('div'); head.className = 'struct-head';
+  head.innerHTML = HEAD_ICON[s.kind] || '';
+  const title = document.createElement('span'); title.className = 'struct-title'; title.textContent = s.label; title.title = '双击改名';
+  title.addEventListener('dblclick', (e) => { e.stopPropagation(); startRename(s, title); });
+  const tag = document.createElement('span'); tag.className = 'struct-tag'; tag.textContent = TAG_TEXT[s.kind] || '';
+  const close = document.createElement('button'); close.className = 'struct-close'; close.title = '移除该结构（元素自动回到等待区）'; close.textContent = '×';
+  close.addEventListener('click', (e) => { e.stopPropagation(); removeStruct(s.id); });
+  head.appendChild(title); head.appendChild(tag); head.appendChild(close);
+  card.appendChild(head);
+
+  const actions = document.createElement('div'); actions.className = 'struct-actions';
+  if (s.kind === 'stack' || s.kind === 'queue') {
+    const inBtn = document.createElement('button'); inBtn.className = 'sa-btn'; inBtn.textContent = s.kind === 'stack' ? '入栈' : '入队';
+    const outBtn = document.createElement('button'); outBtn.className = 'sa-btn'; outBtn.textContent = s.kind === 'stack' ? '出栈' : '出队';
+    outBtn.disabled = !s.items.length;
+    inBtn.addEventListener('click', (e) => { e.stopPropagation(); if (!freeElements().length) { toast('等待区没有可用元素，先在下方面板生成一个'); return; } startPick(s.id, 'push'); });
+    outBtn.addEventListener('click', (e) => { e.stopPropagation(); popOut(s.id); });
+    actions.appendChild(inBtn); actions.appendChild(outBtn);
+  } else if (s.kind === 'tree') {
+    const hasRoot = s.nodes.some(n => n.side === 'root');
+    const addRoot = document.createElement('button'); addRoot.className = 'sa-btn'; addRoot.textContent = '＋ 根节点'; addRoot.disabled = hasRoot;
+    addRoot.addEventListener('click', (e) => { e.stopPropagation(); if (!freeElements().length) { toast('等待区没有可用元素，先生成元素'); return; } startPick(s.id, 'treeRoot'); });
+    actions.appendChild(addRoot);
+  } else if (s.kind === 'graph') {
+    const addNode = document.createElement('button'); addNode.className = 'sa-btn'; addNode.textContent = '＋ 添加节点';
+    addNode.addEventListener('click', (e) => { e.stopPropagation(); if (!freeElements().length) { toast('等待区没有可用元素，先生成元素'); return; } startPick(s.id, 'graphNode'); });
+    const linkBtn = document.createElement('button'); linkBtn.className = 'sa-btn'; linkBtn.textContent = '连线';
+    if (s.connect) linkBtn.classList.add('active');
+    linkBtn.addEventListener('click', (e) => { e.stopPropagation(); s.connect = !s.connect; if (!s.connect) state.play.graphSel = null; renderStage(); });
+    actions.appendChild(addNode); actions.appendChild(linkBtn);
+  } else if (s.kind === 'list') {
+    const prepend = document.createElement('button'); prepend.className = 'sa-btn'; prepend.textContent = '头部插入';
+    const append = document.createElement('button'); append.className = 'sa-btn'; append.textContent = '尾部插入';
+    const rmHead = document.createElement('button'); rmHead.className = 'sa-btn'; rmHead.textContent = '删除头'; rmHead.disabled = !s.items.length;
+    const rmTail = document.createElement('button'); rmTail.className = 'sa-btn'; rmTail.textContent = '删除尾'; rmTail.disabled = !s.items.length;
+    prepend.addEventListener('click', (e) => { e.stopPropagation(); if (!freeElements().length) { toast('等待区没有可用元素，先生成元素'); return; } startPick(s.id, 'listPrepend'); });
+    append.addEventListener('click', (e) => { e.stopPropagation(); if (!freeElements().length) { toast('等待区没有可用元素，先生成元素'); return; } startPick(s.id, 'listAppend'); });
+    rmHead.addEventListener('click', (e) => { e.stopPropagation(); listRemoveAt(s, 0); });
+    rmTail.addEventListener('click', (e) => { e.stopPropagation(); listRemoveAt(s, s.items.length - 1); });
+    actions.appendChild(prepend); actions.appendChild(append); actions.appendChild(rmHead); actions.appendChild(rmTail);
+  }
+  if (actions.childElementCount) card.appendChild(actions);
+
+  const body = document.createElement('div'); body.className = 'struct-body';
+  if (s.kind === 'stack' || s.kind === 'queue') {
+    if (!s.items.length) {
+      const e = document.createElement('div'); e.className = 'struct-empty';
+      e.textContent = s.kind === 'stack' ? '空栈' : '空队列';
+      body.appendChild(e);
+    } else {
+      const order = s.kind === 'stack' ? [...s.items].reverse() : s.items;   // 栈：后进者显示在最上
+      order.forEach(elId => {
+        const el = elementById(elId); if (!el) return;
+        const chip = document.createElement('div');
+        chip.className = 'el-chip'; chip.style.background = el.color; chip.textContent = el.label; chip.title = el.label + '（可拖动排序）';
+        chip.dataset.el = elId;
+        chip.addEventListener('mousedown', (e) => { startLinearDrag(s, elId, e, chip, body); });
+        body.appendChild(chip);
+      });
+    }
+    const marker = document.createElement('div'); marker.className = 'struct-marker';
+    marker.innerHTML = s.kind === 'stack' ? '<span class="m-top">▲ 栈顶</span><span>栈底 ▼</span>' : '<span>队首</span><span>→</span><span>队尾</span>';
+    card.appendChild(marker);
+  } else if (s.kind === 'tree') {
+    renderTreeBody(body, s);
+  } else if (s.kind === 'graph') {
+    renderGraphBody(body, s);
+    if (s.connect) body.classList.add('connect');
+  } else if (s.kind === 'list') {
+    renderListBody(body, s);
+  }
+  card.appendChild(body);
+
+  // 在舞台上拖动整张卡片（点头部 / 卡片空白处均可；内部节点已 stopPropagation 不会冲突）
+  card.addEventListener('mousedown', (e) => { startCardDrag(s, e, card); });
+
+  card.addEventListener('click', () => {
+    if (card.classList.contains('just-dragged')) return;  // 刚拖动过则不触发选择切换
+    playEl.stage.querySelectorAll('.struct-card.selected').forEach(c => { if (c !== card) c.classList.remove('selected'); });
+    card.classList.toggle('selected');
+  });
+  return card;
+}
+
+// 拖动整张结构卡片（在舞台内自由定位）
+function startCardDrag(s, ev, card) {
+  if (ev.target.closest('.struct-close, .struct-rename, .sa-btn, .node-rm, .graph-link')) return;
+  if (state.play.picking || state.play.animating) return;
+  ev.stopPropagation();
+  const stage = playEl.stage;
+  const sx = ev.clientX, sy = ev.clientY, ox = s.x || 0, oy = s.y || 0;
+  let moved = false;
+  card.classList.add('dragging');
+  document.body.style.userSelect = 'none';
+  function move(e) {
+    moved = true;
+    let nx = ox + (e.clientX - sx);
+    let ny = oy + (e.clientY - sy);
+    nx = Math.max(0, nx);   // 仅在舞台内、不超出左上边界；右下可自由拖，超出部分由 overflow 滚动
+    ny = Math.max(0, ny);
+    s.x = nx; s.y = ny;
+    card.style.left = nx + 'px'; card.style.top = ny + 'px';
+  }
+  function up() {
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+    card.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    if (moved) card.classList.add('just-dragged');
+    setTimeout(() => card.classList.remove('just-dragged'), 0);
+  }
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
+// ---- 二叉树渲染 ----
+function renderTreeBody(body, s) {
+  if (!s.nodes.length) {
+    const e = document.createElement('div'); e.className = 'struct-empty';
+    e.textContent = '空二叉树 — 点上方「＋ 根节点」';
+    body.appendChild(e);
+    return;
+  }
+  const H_SP = 56, V_SP = 58, PAD = 12;
+  const pos = {};
+  let ix = 0;
+  function inorder(nodeId, depth) {
+    const kids = s.nodes.filter(n => n.parent === nodeId);
+    const left = kids.find(n => n.side === 'left');
+    const right = kids.find(n => n.side === 'right');
+    if (left) inorder(left.id, depth + 1);
+    pos[nodeId] = { x: PAD + ix * H_SP, y: PAD + depth * V_SP };
+    ix++;
+    if (right) inorder(right.id, depth + 1);
+  }
+  const root = s.nodes.find(n => n.side === 'root');
+  if (root) inorder(root.id, 0);
+  // 初始化未手动拖动过的节点坐标（拖动后保留手动位置，重渲染不再被自动布局覆盖）
+  s.nodes.forEach(n => { if (n.x == null || n.y == null) { n.x = pos[n.id].x; n.y = pos[n.id].y; } });
+  let maxX = 0, maxY = 0;
+  s.nodes.forEach(n => { maxX = Math.max(maxX, n.x); maxY = Math.max(maxY, n.y); });
+  const W = maxX + PAD + NODE_W, H = maxY + PAD + NODE_H;
+  body.style.minHeight = H + 'px'; body.style.height = H + 'px'; body.style.width = W + 'px';
+
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(SVGNS, 'svg');
+  svg.setAttribute('class', 'tree-edges');
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  s.nodes.forEach(n => {
+    if (!n.parent) return;
+    const pn = s.nodes.find(p => p.id === n.parent); if (!pn) return;
+    const line = document.createElementNS(SVGNS, 'line');
+    line.setAttribute('x1', pn.x + NODE_W / 2); line.setAttribute('y1', pn.y + NODE_H);
+    line.setAttribute('x2', n.x + NODE_W / 2); line.setAttribute('y2', n.y);
+    line.setAttribute('class', 'tree-edge');
+    svg.appendChild(line);
+  });
+  body.appendChild(svg);
+
+  s.nodes.forEach(n => {
+    const el = elementById(n.elId); if (!el) return;
+    const chip = document.createElement('div'); chip.className = 'tree-node';
+    chip.dataset.el = n.elId;
+    chip.style.left = n.x + 'px'; chip.style.top = n.y + 'px'; chip.style.background = el.color;
+    chip.textContent = el.label; chip.title = el.label + '（可拖动）';
+    const hasL = s.nodes.some(c => c.parent === n.id && c.side === 'left');
+    const hasR = s.nodes.some(c => c.parent === n.id && c.side === 'right');
+    const addL = document.createElement('button'); addL.className = 'node-add left'; addL.textContent = '＋'; addL.title = '添加左子节点'; addL.disabled = hasL;
+    const addR = document.createElement('button'); addR.className = 'node-add right'; addR.textContent = '＋'; addR.title = '添加右子节点'; addR.disabled = hasR;
+    addL.addEventListener('click', (e) => { e.stopPropagation(); if (!freeElements().length) { toast('等待区没有可用元素，先生成元素'); return; } startPick(s.id, 'treeChild', n.id, 'left'); });
+    addR.addEventListener('click', (e) => { e.stopPropagation(); if (!freeElements().length) { toast('等待区没有可用元素，先生成元素'); return; } startPick(s.id, 'treeChild', n.id, 'right'); });
+    const rm = document.createElement('button'); rm.className = 'node-rm'; rm.textContent = '×'; rm.title = '删除该节点及其子树';
+    rm.addEventListener('click', (e) => { e.stopPropagation(); removeTreeNode(s, n.id); });
+    chip.appendChild(addL); chip.appendChild(addR); chip.appendChild(rm);
+    chip.addEventListener('mousedown', (e) => { if (e.target.closest('.node-add, .node-rm')) return; startTreeDrag(s, n, e, chip, body); });
+    body.appendChild(chip);
+  });
+}
+
+// 二叉树节点拖拽：手动重定位，连线实时跟随
+function startTreeDrag(s, n, ev, chip, body) {
+  ev.stopPropagation();
+  const sx = ev.clientX, sy = ev.clientY, ox = n.x, oy = n.y;
+  function move(e) {
+    n.x = Math.max(0, Math.min(body.clientWidth - NODE_W, ox + (e.clientX - sx)));
+    n.y = Math.max(0, Math.min(body.clientHeight - NODE_H, oy + (e.clientY - sy)));
+    chip.style.left = n.x + 'px'; chip.style.top = n.y + 'px';
+    updateTreeEdges(s, body);
+  }
+  function up() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+function updateTreeEdges(s, body) {
+  const svg = body.querySelector('.tree-edges'); if (!svg) return;
+  const lines = svg.querySelectorAll('.tree-edge'); let i = 0;
+  s.nodes.forEach(n => {
+    if (!n.parent) return;
+    const pn = s.nodes.find(p => p.id === n.parent); if (!pn) return;
+    const line = lines[i++]; if (!line) return;
+    line.setAttribute('x1', pn.x + NODE_W / 2); line.setAttribute('y1', pn.y + NODE_H);
+    line.setAttribute('x2', n.x + NODE_W / 2); line.setAttribute('y2', n.y);
+  });
+}
+
+// ---- 图渲染 ----
+function renderGraphBody(body, s) {
+  const H = 240;
+  body.style.width = '100%'; body.style.minHeight = H + 'px'; body.style.height = H + 'px';
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(SVGNS, 'svg');
+  svg.setAttribute('class', 'graph-edges');
+  svg.setAttribute('width', '100%'); svg.setAttribute('height', H);
+  s.edges.forEach((e, i) => {
+    const a = s.nodes.find(n => n.id === e.from), b = s.nodes.find(n => n.id === e.to);
+    if (!a || !b) return;
+    const line = document.createElementNS(SVGNS, 'line');
+    line.setAttribute('x1', a.x + NODE_W / 2); line.setAttribute('y1', a.y + NODE_H / 2);
+    line.setAttribute('x2', b.x + NODE_W / 2); line.setAttribute('y2', b.y + NODE_H / 2);
+    line.setAttribute('class', 'graph-edge' + (state.play.graphSel && (state.play.graphSel === e.from || state.play.graphSel === e.to) ? ' hot' : ''));
+    line.setAttribute('data-i', i);
+    line.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const ea = elementById(a.elId), eb = elementById(b.elId);
+      if (state.record.active) recordOp({ t: 'removeEdge', var: recordVarName(s), value: [recordValRef(ea), recordValRef(eb)], raw: [ea.label, eb.label] });
+      s.edges = s.edges.filter((_, j) => j !== i);
+      state.play.graphSel = null;
+      renderStage();
+    });
+    svg.appendChild(line);
+  });
+  body.appendChild(svg);
+
+  s.nodes.forEach(n => {
+    const el = elementById(n.elId); if (!el) return;
+    const chip = document.createElement('div');
+    chip.className = 'graph-node' + (state.play.graphSel === n.id ? ' sel' : '');
+    chip.dataset.el = n.elId;
+    chip.style.left = n.x + 'px'; chip.style.top = n.y + 'px'; chip.style.background = el.color;
+    chip.textContent = el.label; chip.title = el.label;
+    const rm = document.createElement('button'); rm.className = 'node-rm'; rm.textContent = '×'; rm.title = '删除节点';
+    rm.addEventListener('click', (e) => { e.stopPropagation(); removeGraphNode(s, n.id); });
+    chip.appendChild(rm);
+    chip.addEventListener('click', (e) => { e.stopPropagation(); onGraphNodeClick(s, n); });
+    chip.addEventListener('mousedown', (e) => { if (s.connect) return; startNodeDrag(s, n, e, chip, body); });
+    body.appendChild(chip);
+  });
+}
+
+function onGraphNodeClick(s, n) {
+  if (!s.connect) return;
+  if (!state.play.graphSel) { state.play.graphSel = n.id; renderStage(); return; }
+  if (state.play.graphSel === n.id) { state.play.graphSel = null; renderStage(); return; }
+  const from = state.play.graphSel;
+  const dup = s.edges.some(e => e.from === from && e.to === n.id);
+  if (from !== n.id && !dup) {
+    s.edges.push({ from, to: n.id });
+    if (state.record.active) {
+      const fa = s.nodes.find(x => x.id === from), ta = n;
+      const ea = elementById(fa.elId), eb = elementById(ta.elId);
+      recordOp({ t: 'addEdge', var: recordVarName(s), value: [recordValRef(ea), recordValRef(eb)], raw: [ea.label, eb.label] });
+    }
+  }
+  state.play.graphSel = n.id;   // 链式：继续从本节点连下一条
+  renderStage();
+}
+
+function startNodeDrag(s, n, ev, chip, body) {
+  ev.stopPropagation();
+  if (ev.target.closest('.node-rm')) return;
+  const sx = ev.clientX, sy = ev.clientY, ox = n.x, oy = n.y;
+  function move(e) {
+    n.x = Math.max(0, Math.min(body.clientWidth - NODE_W, ox + (e.clientX - sx)));
+    n.y = Math.max(0, Math.min(body.clientHeight - NODE_H, oy + (e.clientY - sy)));
+    chip.style.left = n.x + 'px'; chip.style.top = n.y + 'px';
+    updateGraphEdges(s, body);
+  }
+  function up() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
+function updateGraphEdges(s, body) {
+  s.edges.forEach((e, i) => {
+    const a = s.nodes.find(n => n.id === e.from), b = s.nodes.find(n => n.id === e.to);
+    const line = body.querySelector('.graph-edge[data-i="' + i + '"]');
+    if (!a || !b || !line) return;
+    line.setAttribute('x1', a.x + NODE_W / 2); line.setAttribute('y1', a.y + NODE_H / 2);
+    line.setAttribute('x2', b.x + NODE_W / 2); line.setAttribute('y2', b.y + NODE_H / 2);
+  });
+}
+
+// 栈 / 队列 元素拖拽重排（图用 startNodeDrag 自由定位，此处改顺序）
+function startLinearDrag(s, elId, ev, chip, body) {
+  ev.stopPropagation();
+  if (ev.target.closest('.node-rm')) return;
+  if (state.play.picking || state.play.animating) return;
+  const rect = chip.getBoundingClientRect();
+  const clone = chip.cloneNode(true);
+  clone.classList.add('fly-clone');
+  clone.style.position = 'fixed';
+  clone.style.left = rect.left + 'px';
+  clone.style.top = rect.top + 'px';
+  clone.style.width = rect.width + 'px';
+  clone.style.zIndex = '999';
+  clone.style.pointerEvents = 'none';
+  document.body.appendChild(clone);
+  chip.style.opacity = '0.3';
+  const horizontal = s.kind === 'queue' || s.kind === 'list';
+  function displayItems() { return s.kind === 'stack' ? [...s.items].reverse() : [...s.items]; }
+  function move(e) {
+    clone.style.left = (e.clientX - (ev.clientX - rect.left)) + 'px';
+    clone.style.top = (e.clientY - (ev.clientY - rect.top)) + 'px';
+    const siblings = [...body.querySelectorAll('.el-chip')].filter(c => c !== chip);
+    let idx = siblings.length;
+    for (let i = 0; i < siblings.length; i++) {
+      const r = siblings[i].getBoundingClientRect();
+      const mid = horizontal ? r.left + r.width / 2 : r.top + r.height / 2;
+      if ((horizontal ? e.clientX : e.clientY) < mid) { idx = i; break; }
+    }
+    body._dropIdx = idx;
+  }
+  function up() {
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+    clone.remove();
+    chip.style.opacity = '';
+    const t = body._dropIdx;
+    if (t == null) { renderStage(); return; }
+    const disp = displayItems();
+    const cur = disp.indexOf(elId);
+    if (cur === -1) { renderStage(); return; }
+    disp.splice(cur, 1);
+    disp.splice(t, 0, elId);
+    s.items = s.kind === 'stack' ? [...disp].reverse() : disp;
+    renderStage();
+  }
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
+function removeTreeNode(s, nodeId) {
+  const target = s.nodes.find(n => n.id === nodeId);
+  const recEl = target ? elementById(target.elId) : null;
+  const toRemove = new Set([nodeId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    s.nodes.forEach(n => { if (n.parent && toRemove.has(n.parent) && !toRemove.has(n.id)) { toRemove.add(n.id); changed = true; } });
+  }
+  s.nodes = s.nodes.filter(n => !toRemove.has(n.id));
+  if (state.record.active && recEl) recordOp({ t: 'remove', var: recordVarName(s), value: recordValRef(recEl), raw: recEl.label });
+  renderStage();
+}
+
+function removeGraphNode(s, nodeId) {
+  const target = s.nodes.find(n => n.id === nodeId);
+  const recEl = target ? elementById(target.elId) : null;
+  s.nodes = s.nodes.filter(n => n.id !== nodeId);
+  s.edges = s.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+  if (state.play.graphSel === nodeId) state.play.graphSel = null;
+  if (state.record.active && recEl) recordOp({ t: 'removeNode', var: recordVarName(s), value: recordValRef(recEl), raw: recEl.label });
+  renderStage();
+}
+
+// ---- 结构重命名（不可与已有名称相同）----
+function startRename(s, titleSpan) {
+  if (titleSpan.querySelector('input')) return;
+  const old = s.label;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = old;
+  input.className = 'struct-rename';
+  input.maxLength = 16;
+  titleSpan.textContent = '';
+  titleSpan.appendChild(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const commit = () => {
+    if (done) return;
+    const v = input.value.trim();
+    if (v === '') { titleSpan.textContent = old; done = true; return; }
+    const dup = state.play.structs.some(x => x.id !== s.id && x.label.trim() === v);
+    if (dup) {
+      toast('名称「' + v + '」已存在，请换一个');
+      input.select();
+      return;
+    }
+    s.label = v;
+    titleSpan.textContent = v;
+    done = true;
+    if (state.play.picking && state.play.picking.structId === s.id) {
+      playEl.bannerText.textContent = '请点击下方等待区的一个元素加入「' + v + '」，点击空白或按 Esc 取消';
+    }
+  };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); titleSpan.textContent = old; done = true; input.blur(); }
+  });
+  input.addEventListener('blur', commit);
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('dblclick', (e) => e.stopPropagation());
+}
+
+// ---- 挑选等待区元素（栈/队列 push、二叉树根/子节点、图节点）----
+function startPick(structId, mode, nodeId, side) {
+  if (state.play.animating) return;
+  state.play.picking = { structId, mode: mode || 'push', nodeId, side };
+  const s = structById(structId);
+  if (!s) return;
+  playEl.bannerText.textContent = '请点击下方等待区的一个元素加入「' + s.label + '」，点击空白或按 Esc 取消';
+  playEl.banner.hidden = false;
+  playEl.waiting.classList.add('picking');
+}
+
+function cancelPick() {
+  if (!state.play.picking) return;
+  state.play.picking = null;
+  playEl.banner.hidden = true;
+  playEl.waiting.classList.remove('picking');
+}
+
+// 挑选完成后，按 mode 把元素放入对应结构
+const NODE_W = 46, NODE_H = 30;
+function commitPick(s, el, p) {
+  const rec = state.record.active;
+  if (p.mode === 'push') { s.items.push(el.id); if (rec) recordOp({ t: 'push', var: recordVarName(s), value: recordValRef(el), raw: el.label }); renderStage(); return; }
+  if (p.mode === 'listAppend') { s.items.push(el.id); if (rec) recordOp({ t: 'insertTail', var: recordVarName(s), value: recordValRef(el), raw: el.label }); renderStage(); return; }
+  if (p.mode === 'listPrepend') { s.items.unshift(el.id); if (rec) recordOp({ t: 'insertHead', var: recordVarName(s), value: recordValRef(el), raw: el.label }); renderStage(); return; }
+  if (!s.nodes) return;
+  if (p.mode === 'treeRoot') { s.nodes.push({ id: 'n' + (s.nextNodeId++), elId: el.id, parent: null, side: 'root' }); if (rec) recordOp({ t: 'insert', var: recordVarName(s), value: recordValRef(el), raw: el.label }); }
+  else if (p.mode === 'treeChild') { s.nodes.push({ id: 'n' + (s.nextNodeId++), elId: el.id, parent: p.nodeId, side: p.side }); if (rec) recordOp({ t: 'insert', var: recordVarName(s), value: recordValRef(el), raw: el.label }); }
+  else if (p.mode === 'graphNode') { const pos = nextGraphPos(s); s.nodes.push({ id: 'n' + (s.nextNodeId++), elId: el.id, x: pos.x, y: pos.y }); if (rec) recordOp({ t: 'addNode', var: recordVarName(s), value: recordValRef(el), raw: el.label }); }
+  renderStage();
+}
+function nextGraphPos(s) {
+  const N = s.nodes.length;
+  const col = N % 4, row = Math.floor(N / 4);
+  return { x: 14 + col * 60, y: 14 + row * 56 };
+}
+
+// ---- 出栈 / 出队：元素飞回等待区 ----
+function popOut(structId) {
+  const s = structById(structId);
+  if (!s || !s.items.length || state.play.animating) return;
+  const elId = s.kind === 'stack' ? s.items[s.items.length - 1] : s.items[0];
+  const el = elementById(elId); if (!el) return;
+  const card = playEl.stage.querySelector('.struct-card[data-id="' + structId + '"]');
+  const fromEl = card ? card.querySelector('.el-chip') : null;
+  animateMove(fromEl, playEl.waiting, el, () => {
+    if (s.kind === 'stack') { s.items.pop(); if (state.record.active) recordOp({ t: 'pop', var: recordVarName(s) }); }
+    else { s.items.shift(); if (state.record.active) recordOp({ t: 'dequeue', var: recordVarName(s) }); }
+    renderStage();
+  });
+}
+
+// ---- 链表渲染 ----
+function renderListBody(body, s) {
+  const head = document.createElement('span'); head.className = 'll-head'; head.textContent = 'head';
+  body.appendChild(head);
+  if (!s.items.length) {
+    const e = document.createElement('span'); e.className = 'll-empty'; e.textContent = '空链表';
+    body.appendChild(e);
+  } else {
+    s.items.forEach((elId, idx) => {
+      const el = elementById(elId); if (!el) return;
+      const chip = document.createElement('div');
+      chip.className = 'el-chip ll-node'; chip.style.background = el.color; chip.textContent = el.label;
+      chip.dataset.el = elId;
+      chip.title = el.label + '（可拖动排序，点 × 删除）';
+      const rm = document.createElement('span'); rm.className = 'node-rm'; rm.textContent = '×'; rm.title = '删除该节点';
+      rm.addEventListener('click', (e) => { e.stopPropagation(); listRemoveAt(s, idx); });
+      chip.appendChild(rm);
+      chip.addEventListener('mousedown', (e) => { if (e.target.closest('.node-rm')) return; startLinearDrag(s, elId, e, chip, body); });
+      body.appendChild(chip);
+      if (idx < s.items.length - 1) {
+        const arrow = document.createElement('span'); arrow.className = 'll-arrow'; arrow.textContent = '→';
+        body.appendChild(arrow);
+      }
+    });
+  }
+  const nul = document.createElement('span'); nul.className = 'll-null'; nul.textContent = '∅'; nul.title = 'NULL 尾指针';
+  body.appendChild(nul);
+}
+
+// 删除链表中第 index 个节点（元素飞回等待区）
+function listRemoveAt(s, index) {
+  if (state.play.animating) return;
+  const elId = s.items[index];
+  if (elId == null) return;
+  const el = elementById(elId); if (!el) return;
+  const card = playEl.stage.querySelector('.struct-card[data-id="' + s.id + '"]');
+  const chip = card ? card.querySelectorAll('.el-chip')[index] : null;
+  animateMove(chip, playEl.waiting, el, () => {
+    const isHead = index === 0;
+    s.items.splice(index, 1);
+    if (state.record.active) recordOp({ t: isHead ? 'removeHead' : 'removeTail', var: recordVarName(s) });
+    renderStage();
+  });
+}
+
+// ---- 飞行动画：源元素 → 目标区域，结束后重渲染 ----
+function animateMove(fromEl, toEl, el, done) {
+  if (!fromEl || !toEl) { done(); return; }
+  state.play.animating = true;
+  const f = fromEl.getBoundingClientRect();
+  const t = toEl.getBoundingClientRect();
+  const clone = document.createElement('div');
+  clone.className = 'el-chip fly-clone';
+  clone.textContent = el.label;
+  clone.style.background = el.color;
+  clone.style.position = 'fixed';
+  clone.style.left = f.left + 'px';
+  clone.style.top = f.top + 'px';
+  clone.style.width = f.width + 'px';
+  clone.style.height = f.height + 'px';
+  clone.style.zIndex = '9999';
+  clone.style.margin = '0';
+  document.body.appendChild(clone);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    clone.style.transition = 'left .42s cubic-bezier(.22,1,.36,1),top .42s cubic-bezier(.22,1,.36,1),width .3s ease,height .3s ease';
+    clone.style.left = t.left + 'px';
+    clone.style.top = t.top + 'px';
+    clone.style.width = Math.max(54, Math.min(150, t.width * 0.92)) + 'px';
+    clone.style.height = Math.max(28, Math.min(32, t.height * 0.9)) + 'px';
+    setTimeout(() => { clone.remove(); state.play.animating = false; done(); }, 460);
+  }));
+}
+
+// ---- 事件接线 ----
+playEl.addElBtn.addEventListener('click', () => {
+  const v = playEl.input.value.trim();
+  if (!v) { playEl.input.focus(); return; }
+  addElement(v);
+});
+playEl.input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const v = playEl.input.value.trim();
+    if (v) addElement(v);
+  }
+});
+playEl.bannerCancel.addEventListener('click', cancelPick);
+playEl.stage.addEventListener('click', (e) => {
+  if (state.play.picking && !e.target.closest('.struct-card')) cancelPick();
+});
+playEl.tools.querySelectorAll('.play-add:not([data-kind="auto"])').forEach(b => b.addEventListener('click', () => addStruct(b.dataset.kind)));
+
+// ==================== KEYBOARD ====================
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') cancelPick();
+});
+
+// ==================== 自动可视化（粘贴 DSL 代码 → 自动生成结构 + 逐步模拟）====================
+const autoEl = {
+  panel: $('auto-panel'),
+  toggle: $('btn-auto-toggle'),
+  close: $('auto-close'),
+  script: $('auto-script'),
+  parse: $('auto-parse'),
+  example: $('auto-example'),
+  clear: $('auto-clear'),
+  prompt: $('auto-prompt'),
+  promptLabel: $('auto-prompt-label'),
+  promptInput: $('auto-prompt-input'),
+  promptOk: $('auto-prompt-ok'),
+  promptCancel: $('auto-prompt-cancel'),
+  prev: $('auto-step-prev'),
+  next: $('auto-step-next'),
+  play: $('auto-step-play'),
+  reset: $('auto-step-reset'),
+  info: $('auto-step-info'),
+  desc: $('auto-step-desc'),
+};
+
+const AUTO_SAMPLE = `#include <stdio.h>
+#include <stdlib.h>
+
+// 用栈做简单的后进先出演示（可直接粘贴真实 C 代码，头文件/注释/函数框架会自动忽略）
+int main(void) {
+    Stack s;                 // 声明一个栈
+    push(s, 10);
+    push(s, 20);
+    push(s, x);              // x 未定义 → 运行到此处会提示输入
+    int top = pop(s);        // 出栈
+    printf("top = %d\\n", top);
+
+    Queue q;
+    enqueue(q, "A");
+    enqueue(q, "B");
+    dequeue(q);
+
+    List l;
+    insertHead(l, 5);
+    insertTail(l, 99);
+
+    Tree t;
+    insert(t, 50);
+    insert(t, 30);
+    insert(t, 70);
+    insert(t, 60);
+
+    Graph g;
+    addNode(g, "A");
+    addNode(g, "B");
+    addEdge(g, A, B);
+
+    return 0;
+}
+`;
+
+// 每种操作需要的「值参数」个数（0 表示无值操作）
+const AUTO_VALUE_OPS = {
+  push: 1, enqueue: 1, insertHead: 1, insertTail: 1, addNode: 1, insert: 1, remove: 1, addEdge: 2,
+  pop: 0, dequeue: 0, removeHead: 0, removeTail: 0,
+};
+// 显式声明：`Stack s;` / `struct Stack s;` / `Stack *s;` / `Stack s[10];`（也支持中文类型名）
+const AUTO_DECL_RE = /^(?:struct\s+)?(Stack|Queue|List|Tree|Graph|栈|队列|链表|树|图)\s*\**\s*([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\s*;?$/;
+const AUTO_TYPE_KIND = { Stack: 'stack', Queue: 'queue', List: 'list', Tree: 'tree', Graph: 'graph', 栈: 'stack', 队列: 'queue', 链表: 'list', 树: 'tree', 图: 'graph' };
+// 操作调用：函数名(...)，函数名可带前缀（stack_push / StackPush / push）
+const AUTO_CALL_RE = /([A-Za-z_]\w*)\s*\(([^;{}]*)\)/;
+// 普通变量声明（按变量名推断结构，如 int stack[100];）
+const AUTO_VAR_DECL_RE = /^\s*(?:const\s+|static\s+)*(?:(?:unsigned|signed|short|long)\s+)*(?:int|char|float|double|bool|size_t|void)\s*\**\s*([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\s*(?:=.*)?;?\s*$/;
+// 函数定义/声明/原型（int main() { … }），作为噪音忽略
+const AUTO_FUNC_RE = /^\s*(?:[\w*]+\s+)+[\w]+\s*\([^;{}]*\)\s*[\{;]?$/;
+// 常见库函数调用，作为噪音忽略
+const AUTO_NOISE_CALL = /^(printf|scanf|puts|putchar|getchar|sprintf|snprintf|fprintf|fscanf|memcpy|memset|memcmp|strcpy|strncpy|strlen|strcmp|strcat|malloc|calloc|realloc|free|sizeof|assert)\s*\(/;
+// 核心动词 → (内部 op, 结构类型)，按「具体→通用」顺序匹配（函数名小写去符号后做后缀匹配）
+const AUTO_VERB_RULES = [
+  ['inserthead', 'insertHead', 'list'], ['inserttail', 'insertTail', 'list'],
+  ['removehead', 'removeHead', 'list'], ['removetail', 'removeTail', 'list'],
+  ['addfirst', 'insertHead', 'list'], ['addlast', 'insertTail', 'list'],
+  ['addhead', 'insertHead', 'list'], ['addtail', 'insertTail', 'list'],
+  ['pushfront', 'insertHead', 'list'], ['pushback', 'insertTail', 'list'],
+  ['popfront', 'removeHead', 'list'], ['popback', 'removeTail', 'list'],
+  ['deletehead', 'removeHead', 'list'], ['deletetail', 'removeTail', 'list'],
+  ['append', 'insertTail', 'list'],
+  ['addnode', 'addNode', 'graph'], ['addvertex', 'addNode', 'graph'],
+  ['addedge', 'addEdge', 'graph'], ['addarc', 'addEdge', 'graph'],
+  ['enqueue', 'enqueue', 'queue'], ['dequeue', 'dequeue', 'queue'],
+  ['push', 'push', 'stack'], ['pop', 'pop', 'stack'],
+  ['insert', 'insert', 'tree'], ['remove', 'remove', 'tree'], ['delete', 'remove', 'tree'],
+];
+function autoMatchOp(fnName) {
+  const norm = fnName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  for (const [suffix, op, kind] of AUTO_VERB_RULES) {
+    if (norm.endsWith(suffix)) return { op, kind };
+  }
+  return null;
+}
+// 从第一个实参提取结构名：去 & *，去 ->/. 后缀
+function autoExtractStruct(arg) {
+  const a = (arg || '').trim().replace(/^[&*]+/, '').replace(/(->|\.).*$/, '');
+  return a.trim();
+}
+// 变量名 → 结构类型启发式
+function autoNameHint(name) {
+  const n = name.toLowerCase();
+  if (n.includes('stack') || n.includes('stk') || n.includes('栈')) return 'stack';
+  if (n.includes('queue') || n.includes('队列')) return 'queue';
+  if (n.includes('list') || n.includes('链表')) return 'list';
+  if (n.includes('tree') || n.includes('bst') || n.includes('root') || n.includes('树')) return 'tree';
+  if (n.includes('graph') || n.includes('adj') || n.includes('edge') || n.includes('图')) return 'graph';
+  return null;
+}
+
+function autoSplitArgs(s) {
+  const parts = []; let cur = ''; let inStr = null;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) { cur += ch; if (ch === inStr) inStr = null; }
+    else if (ch === '"' || ch === "'") { inStr = ch; cur += ch; }
+    else if (ch === ',') { parts.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  if (cur.trim() !== '') parts.push(cur.trim());
+  return parts;
+}
+
+function autoClassify(tok) {
+  if (/^-?\d+(\.\d+)?$/.test(tok)) return { kind: 'literal', label: tok };
+  if ((tok[0] === '"' && tok[tok.length - 1] === '"') || (tok[0] === "'" && tok[tok.length - 1] === "'")) return { kind: 'literal', label: tok.slice(1, -1) };
+  if (/^[A-Za-z_]\w*$/.test(tok)) return { kind: 'ident', name: tok };
+  return { kind: 'literal', label: tok };
+}
+
+function parseAutoScript(code) {
+  const decls = [], steps = [];
+  let skipped = 0;
+  const registered = {};  // 结构名 -> 类型（按出现顺序注册，显式声明优先）
+  const register = (name, kind) => { if (name && !registered[name]) { registered[name] = kind; decls.push({ kind, name }); } };
+
+  // 剥块注释 + 行注释
+  const src = code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  src.split('\n').forEach((rawLine, li) => {
+    const line = rawLine.trim();
+    if (!line) return;
+    // 整行噪音：预处理 / 纯括号 / 控制关键字 / 库调用 / 函数定义
+    if (/^#/.test(line)) return;
+    if (/^[{}\[\]()]+$/.test(line)) return;
+    if (/^(return|break|continue|goto)\b/.test(line)) return;
+    if (AUTO_NOISE_CALL.test(line)) return;
+    if (AUTO_FUNC_RE.test(line)) return;
+
+    line.split(';').map(s => s.trim()).filter(Boolean).forEach(stmt => {
+      let m;
+      // 1) 显式声明
+      m = stmt.match(AUTO_DECL_RE);
+      if (m) { register(m[2], AUTO_TYPE_KIND[m[1]]); return; }
+      // 2) 操作调用（核心动词推断结构类型 + 自动注册）
+      m = stmt.match(AUTO_CALL_RE);
+      if (m) {
+        const hit = autoMatchOp(m[1]);
+        if (hit) {
+          const args = autoSplitArgs(m[2]);
+          const sname = autoExtractStruct(args[0]);
+          if (!sname) { skipped++; return; }
+          register(sname, hit.kind);  // 未声明则按动词类型自动创建
+          steps.push({ op: hit.op, struct: sname, args: args.slice(1), raw: stmt.trim(), line: li + 1 });
+          return;
+        }
+        return;  // 有调用但非数据结构操作 → 忽略
+      }
+      // 3) 普通变量声明 + 变量名推断
+      m = stmt.match(AUTO_VAR_DECL_RE);
+      if (m) { const hint = autoNameHint(m[1]); if (hint) register(m[1], hint); return; }
+      // 4) 其它 → 静默忽略
+      skipped++;
+    });
+  });
+  return { decls, steps, skipped };
+}
+
+function autoStructByName(name) { return structById(state.auto.structByName[name]); }
+function autoMakeElement(label) {
+  const el = { id: 'e' + state.play.nextElId++, label, color: EL_PALETTE[state.play.elements.length % EL_PALETTE.length] };
+  state.play.elements.push(el);
+  return el;
+}
+function autoCompare(a, b) {
+  const na = Number(a), nb = Number(b);
+  if (a !== '' && b !== '' && !isNaN(na) && !isNaN(nb)) return na - nb;
+  const sa = String(a), sb = String(b);
+  return sa < sb ? -1 : sa > sb ? 1 : 0;
+}
+
+// 解析某个值参数：字面量直接返回；未定义变量按已输入值复用 / 图节点标签匹配 / 否则提示
+function autoResolveArg(step, struct, ai) {
+  const raw = step.args[ai];
+  if (raw == null) return { ok: false, err: true };
+  const c = autoClassify(raw);
+  if (c.kind === 'literal') return { ok: true, label: c.label };
+  if (state.auto.resolvedValues[c.name] != null) return { ok: true, label: state.auto.resolvedValues[c.name] };
+  if (step.op === 'addEdge' && struct) {
+    const hit = struct.nodes.some(n => elementById(n.elId) && elementById(n.elId).label === c.name);
+    if (hit) return { ok: true, label: c.name };
+  }
+  return { ok: false, prompt: c.name };
+}
+
+// 执行一步（无动画，仅改数据 + 重渲染 + 高亮）
+function autoApply(step, labels, opts) {
+  opts = opts || {};
+  const s = autoStructByName(step.struct);
+  if (!s) { if (!opts.silent) toast('未找到结构「' + step.struct + '」'); return; }
+  let newElId = null;
+  switch (step.op) {
+    case 'push': case 'enqueue': case 'insertTail':
+      newElId = autoMakeElement(labels[0]).id; s.items.push(newElId); break;
+    case 'insertHead':
+      newElId = autoMakeElement(labels[0]).id; s.items.unshift(newElId); break;
+    case 'pop': case 'dequeue': case 'removeHead':
+      if (!s.items.length) { if (!opts.silent) toast('结构「' + s.label + '」已为空'); break; }
+      if (s.kind === 'stack') s.items.pop(); else s.items.shift(); break;
+    case 'removeTail':
+      if (!s.items.length) { if (!opts.silent) toast('结构「' + s.label + '」已为空'); break; }
+      s.items.pop(); break;
+    case 'insert': {
+      newElId = autoMakeElement(labels[0]).id; autoTreeInsert(s, newElId, labels[0]); break;
+    }
+    case 'remove': {
+      autoTreeRemove(s, labels[0], opts); break;
+    }
+    case 'addNode': {
+      newElId = autoMakeElement(labels[0]).id;
+      const pos = nextGraphPos(s);
+      s.nodes.push({ id: 'n' + (s.nextNodeId++), elId: newElId, x: pos.x, y: pos.y });
+      break;
+    }
+    case 'addEdge': {
+      const na = autoEnsureGraphNode(s, labels[0]), nb = autoEnsureGraphNode(s, labels[1]);
+      if (na !== nb && !s.edges.some(e => e.from === na && e.to === nb)) s.edges.push({ from: na, to: nb });
+      break;
+    }
+  }
+  renderStage();
+  if (!opts.silent) autoFlash(s.id, newElId);
+}
+
+function autoTreeInsert(s, elId, label) {
+  const root = s.nodes.find(n => n.side === 'root');
+  if (!root) { s.nodes.push({ id: 'n' + (s.nextNodeId++), elId, parent: null, side: 'root' }); return; }
+  let cur = root;
+  for (;;) {
+    const curVal = elementById(cur.elId).label;
+    const side = autoCompare(label, curVal) < 0 ? 'left' : 'right';
+    const kid = s.nodes.find(n => n.parent === cur.id && n.side === side);
+    if (!kid) { s.nodes.push({ id: 'n' + (s.nextNodeId++), elId, parent: cur.id, side }); return; }
+    cur = kid;
+  }
+}
+
+// 标准 BST 删除：叶子直接删、单子提升、双子用后继（右子树最小节点）替换
+function autoTreeRemove(s, label, opts) {
+  const n = s.nodes.find(n => elementById(n.elId) && elementById(n.elId).label === label);
+  if (!n) { if (!opts || !opts.silent) toast('未找到节点「' + label + '」'); return; }
+  treeBstDelete(s, n.id);
+}
+function treeBstDelete(s, nodeId) {
+  const idx = s.nodes.findIndex(n => n.id === nodeId);
+  if (idx === -1) return;
+  const n = s.nodes[idx];
+  const left = s.nodes.find(c => c.parent === n.id && c.side === 'left');
+  const right = s.nodes.find(c => c.parent === n.id && c.side === 'right');
+  if (!left && !right) { s.nodes.splice(idx, 1); return; }         // 叶子
+  if (left && !right) { treeReplaceChild(s, n, left); return; }    // 只有左子
+  if (right && !left) { treeReplaceChild(s, n, right); return; }   // 只有右子
+  const succ = treeMinNode(s, right);                              // 双子：后继替换值
+  n.elId = succ.elId;
+  treeBstDelete(s, succ.id);
+}
+function treeMinNode(s, node) {
+  let cur = node;
+  for (;;) {
+    const l = s.nodes.find(c => c.parent === cur.id && c.side === 'left');
+    if (!l) return cur;
+    cur = l;
+  }
+}
+function treeReplaceChild(s, n, child) {
+  child.parent = n.parent;
+  child.side = n.side;
+  s.nodes.splice(s.nodes.findIndex(x => x.id === n.id), 1);
+}
+
+function autoEnsureGraphNode(s, label) {
+  let n = s.nodes.find(n => elementById(n.elId) && elementById(n.elId).label === label);
+  if (!n) {
+    const elId = autoMakeElement(label).id;
+    const pos = nextGraphPos(s);
+    n = { id: 'n' + (s.nextNodeId++), elId, x: pos.x, y: pos.y };
+    s.nodes.push(n);
+  }
+  return n.id;
+}
+
+function autoFlash(structId, newElId) {
+  const card = playEl.stage.querySelector('.struct-card[data-id="' + structId + '"]');
+  if (card) {
+    card.classList.add('step-active');
+    setTimeout(() => card.classList.remove('step-active'), 750);
+    if (newElId) {
+      const chip = card.querySelector('[data-el="' + newElId + '"]');
+      if (chip) { chip.classList.add('step-new'); setTimeout(() => chip.classList.remove('step-new'), 650); }
+    }
+  }
+}
+
+// ---- 清空 / 重建 / 解析 ----
+function autoBuildStage() {
+  state.play.elements = []; state.play.structs = [];
+  state.play.nextElId = 1; state.play.nextStructId = 1;
+  state.play.picking = null; state.play.graphSel = null;
+  state.auto.structByName = {};
+  cancelPick();
+  state.auto.decls.forEach((d, i) => {
+    const col = i % 4, row = Math.floor(i / 4);
+    const x = 16 + col * 360, y = 16 + row * 300;
+    const base = { id: 's' + state.play.nextStructId++, kind: d.kind, label: d.name, x, y };
+    let s;
+    if (d.kind === 'stack' || d.kind === 'queue' || d.kind === 'list') s = { ...base, items: [] };
+    else if (d.kind === 'tree') s = { ...base, nodes: [], nextNodeId: 1 };
+    else s = { ...base, nodes: [], edges: [], nextNodeId: 1, connect: false };
+    state.play.structs.push(s);
+    state.auto.structByName[d.name] = s.id;
+  });
+  renderStage();
+}
+
+function autoParse() {
+  const code = autoEl.script.value;
+  if (!code.trim()) { toast('请先在左侧粘贴代码'); autoEl.script.focus(); return; }
+  const r = parseAutoScript(code);
+  if (!r.decls.length && !r.steps.length) { toast('未识别到数据结构声明或操作，请检查代码'); return; }
+  autoPause();
+  state.auto.script = code;
+  state.auto.decls = r.decls; state.auto.steps = r.steps;
+  state.auto.cursor = -1; state.auto.pending = null; state.auto.resolvedValues = {};
+  autoEl.prompt.hidden = true;
+  autoBuildStage();
+  autoRefreshSteps();
+  toast('解析成功：' + r.decls.length + ' 个结构，' + r.steps.length + ' 步操作' + (r.skipped ? '（忽略 ' + r.skipped + ' 行）' : ''));
+}
+
+function autoClearAll() {
+  autoPause();
+  state.auto.decls = []; state.auto.steps = []; state.auto.cursor = -1;
+  state.auto.pending = null; state.auto.structByName = {}; state.auto.resolvedValues = {};
+  autoEl.prompt.hidden = true;
+  state.play.elements = []; state.play.structs = [];
+  state.play.nextElId = 1; state.play.nextStructId = 1;
+  state.play.picking = null; state.play.graphSel = null;
+  cancelPick();
+  renderStage();
+  autoRefreshSteps();
+}
+
+// ---- 步骤推进 ----
+function autoStep() {
+  if (state.auto.pending) return;
+  const ni = state.auto.cursor + 1;
+  if (ni >= state.auto.steps.length) return;
+  const step = state.auto.steps[ni];
+  const struct = autoStructByName(step.struct);
+  if (!struct) { state.auto.cursor = ni; toast('未找到结构「' + step.struct + '」'); autoRefreshSteps(); return; }
+  const needArgs = AUTO_VALUE_OPS[step.op] || 0;
+  const labels = [];
+  for (let ai = 0; ai < needArgs; ai++) {
+    const r = autoResolveArg(step, struct, ai);
+    if (!r.ok) {
+      state.auto.pending = { stepIndex: ni, argIndex: ai, varName: r.prompt };
+      autoEl.promptLabel.textContent = '未找到变量「' + r.prompt + '」的数据，请输入「' + r.prompt + '」的值：';
+      autoEl.promptInput.value = '';
+      autoEl.prompt.hidden = false;
+      autoRefreshSteps();
+      setTimeout(() => autoEl.promptInput.focus(), 30);
+      return;
+    }
+    labels.push(r.label);
+  }
+  state.auto.cursor = ni;
+  autoApply(step, labels);
+  autoRefreshSteps();
+}
+
+function autoStepPrev() {
+  if (state.auto.pending || state.auto.playing) return;
+  if (state.auto.cursor < 0) return;
+  state.auto.cursor--;
+  autoReplayTo(state.auto.cursor);
+}
+function autoReplayTo(target) {
+  autoBuildStage();
+  for (let i = 0; i <= target; i++) {
+    const step = state.auto.steps[i];
+    const struct = autoStructByName(step.struct);
+    if (!struct) continue;
+    const needArgs = AUTO_VALUE_OPS[step.op] || 0;
+    const labels = [];
+    for (let ai = 0; ai < needArgs; ai++) {
+      const r = autoResolveArg(step, struct, ai);
+      labels.push(r.ok ? r.label : '?');
+    }
+    autoApply(step, labels, { silent: true });
+  }
+  autoRefreshSteps();
+}
+
+function autoResolvePrompt() {
+  const p = state.auto.pending;
+  if (!p) return;
+  const v = autoEl.promptInput.value.trim();
+  if (v === '') { autoEl.promptInput.focus(); return; }
+  const step = state.auto.steps[p.stepIndex];
+  const struct = autoStructByName(step.struct);
+  const needArgs = AUTO_VALUE_OPS[step.op] || 0;
+  const labels = [];
+  for (let ai = 0; ai < needArgs; ai++) {
+    if (ai === p.argIndex) { labels.push(v); continue; }
+    const r = autoResolveArg(step, struct, ai);
+    labels.push(r.ok ? r.label : '?');
+  }
+  state.auto.resolvedValues[p.varName] = v;
+  state.auto.pending = null;
+  autoEl.prompt.hidden = true;
+  state.auto.cursor = p.stepIndex;
+  autoApply(step, labels);
+  autoRefreshSteps();
+}
+function autoCancelPrompt() {
+  state.auto.pending = null;
+  autoEl.prompt.hidden = true;
+  autoPause();
+  autoRefreshSteps();
+}
+
+// ---- 播放 ----
+function autoPlay() {
+  if (state.auto.playing) { autoPause(); return; }
+  if (state.auto.cursor >= state.auto.steps.length - 1) { state.auto.cursor = -1; autoBuildStage(); }
+  state.auto.playing = true;
+  autoRefreshPlayBtn();
+  autoSchedulePlay();
+}
+function autoSchedulePlay() {
+  clearTimeout(state.auto.timer);
+  state.auto.timer = setTimeout(() => {
+    if (!state.auto.playing) return;
+    if (state.auto.pending) { autoSchedulePlay(); return; }  // 等待输入
+    const ni = state.auto.cursor + 1;
+    if (ni >= state.auto.steps.length) { autoPause(); return; }
+    autoStep();
+    autoSchedulePlay();
+  }, 900);
+}
+function autoPause() {
+  state.auto.playing = false;
+  clearTimeout(state.auto.timer);
+  autoRefreshPlayBtn();
+}
+function autoReset() {
+  autoPause();
+  state.auto.pending = null;
+  autoEl.prompt.hidden = true;
+  state.auto.cursor = -1;
+  autoBuildStage();
+  autoRefreshSteps();
+}
+function autoRefreshPlayBtn() {
+  autoEl.play.innerHTML = state.auto.playing
+    ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>暂停'
+    : '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>播放';
+}
+function autoRefreshSteps() {
+  const total = state.auto.steps.length, cur = state.auto.cursor;
+  autoEl.info.textContent = '步骤 ' + Math.max(0, cur + 1) + '/' + total;
+  autoEl.prev.disabled = cur < 0 || !!state.auto.pending;
+  autoEl.next.disabled = cur >= total - 1 || !!state.auto.pending;
+  autoEl.reset.disabled = total === 0;
+  autoEl.play.disabled = total === 0 || !!state.auto.pending;
+  if (state.auto.pending) {
+    autoEl.desc.textContent = '⏳ 等待输入变量「' + state.auto.pending.varName + '」→ ' + state.auto.steps[state.auto.pending.stepIndex].raw;
+  } else if (cur >= 0 && cur < total) {
+    autoEl.desc.textContent = '✓ ' + state.auto.steps[cur].raw;
+  } else {
+    autoEl.desc.textContent = total ? '点击「下一步」或「播放」开始模拟' : '粘贴代码后点「解析生成」';
+  }
+  autoRefreshPlayBtn();
+}
+
+// ---- 面板显隐 ----
+function toggleAutoPanel() {
+  const hidden = autoEl.panel.hidden;
+  autoEl.panel.hidden = !hidden;
+  autoEl.toggle.textContent = hidden ? '收起' : '打开';
+  if (hidden) setTimeout(() => autoEl.script.focus(), 30);
+}
+
+// ---- 事件接线 ----
+autoEl.toggle.addEventListener('click', toggleAutoPanel);
+autoEl.close.addEventListener('click', () => { autoEl.panel.hidden = true; autoEl.toggle.textContent = '打开'; });
+autoEl.parse.addEventListener('click', autoParse);
+autoEl.example.addEventListener('click', () => { autoEl.script.value = AUTO_SAMPLE; if (autoEl.panel.hidden) toggleAutoPanel(); });
+autoEl.clear.addEventListener('click', autoClearAll);
+autoEl.prev.addEventListener('click', () => { autoPause(); autoStepPrev(); });
+autoEl.next.addEventListener('click', () => { autoPause(); autoStep(); });
+autoEl.play.addEventListener('click', autoPlay);
+autoEl.reset.addEventListener('click', autoReset);
+autoEl.promptOk.addEventListener('click', autoResolvePrompt);
+autoEl.promptCancel.addEventListener('click', autoCancelPrompt);
+autoEl.promptInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') autoResolvePrompt();
+  else if (e.key === 'Escape') autoCancelPrompt();
+});
+
+// ==================== 记录模式：记录舞台操作 → 生成完整 C 代码 ====================
+const RECORD_PREFIX = { stack: 's', queue: 'q', list: 'l', tree: 't', graph: 'g' };
+function recordVarName(s) {
+  if (s._var) return s._var;
+  const pref = RECORD_PREFIX[s.kind] || 'v';
+  const n = (state.record.varCount[s.kind] = (state.record.varCount[s.kind] || 0) + 1);
+  s._var = pref + n;
+  return s._var;
+}
+function recordOp(op) { state.record.ops.push(op); }
+
+function startRecord() {
+  state.record.active = true;
+  state.record.ops = [];
+  state.record.varCount = {};
+  state.record.inputVar = {};
+  state.record.inputCount = 0;
+  state.play.structs.forEach(s => recordVarName(s));  // 已存在的结构也分配变量名
+  const btn = $('btn-record'); btn.classList.add('recording');
+  $('record-label').textContent = '停止记录';
+  toast('已开启记录模式 —— 操作舞台即可记录（生成元素 / 添加结构 / 出入栈等）');
+}
+function stopRecord() {
+  state.record.active = false;
+  const btn = $('btn-record'); btn.classList.remove('recording');
+  $('record-label').textContent = '记录';
+  if (!state.record.ops.length) { toast('未记录到任何操作'); return; }
+  const code = generateCCode();
+  showCodeModal(code);
+}
+function showCodeModal(code) {
+  const m = $('code-modal');
+  const pre = $('gen-code');
+  pre.textContent = code;
+  m.classList.add('open');
+  $('code-modal-overlay').classList.add('open');
+}
+function closeCodeModal() {
+  const m = $('code-modal');
+  if (m) { m.classList.remove('open'); $('code-modal-overlay').classList.remove('open'); }
+}
+function copyGenCode() {
+  const pre = $('gen-code');
+  const text = pre.textContent;
+  const done = () => toast('已复制到剪贴板');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { toast('复制失败，请手动选择复制'); }
+  document.body.removeChild(ta);
+}
+
+// 元素值 → C 字面量：数字原样；单字符用 'x'；其它用 0 占位并在注释保留原值
+function cValue(label) {
+  const s = String(label);
+  if (/^-?\d+$/.test(s)) return s;
+  if (s.length === 1) return "'" + s.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+  return '0 /* 原值:"' + s.replace(/"/g, "'") + '" */';
+}
+// 元素对应的 C 值引用：有输入变量则用变量名（v1/v2…），否则回退到内联字面量
+function recordValRef(el) {
+  if (!el) return '0';
+  return state.record.inputVar[el.id] || cValue(el.label);
+}
+// 任意文本 → 安全的 C 字符串字面量（用于 printf）
+function cStr(s) {
+  return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n') + '"';
+}
+const C_TYPE = { stack: 'Stack', queue: 'Queue', list: 'List', tree: 'Tree', graph: 'Graph' };
+const C_INIT = { stack: '{{0}, 0}', queue: '{{0}, 0, 0}', list: '{NULL}', tree: '{NULL}', graph: '{0}' };
+
+const C_STACK = `// 栈（数组实现）
+typedef struct { int items[64]; int top; } Stack;
+void push(Stack* s, int v) { s->items[s->top++] = v; }
+int pop(Stack* s) { return s->items[--s->top]; }`;
+
+const C_QUEUE = `// 队列（数组实现）
+typedef struct { int items[64]; int head, tail; } Queue;
+void enqueue(Queue* q, int v) { q->items[q->tail++] = v; }
+int dequeue(Queue* q) { return q->items[q->head++]; }`;
+
+const C_LIST = `// 单链表
+typedef struct Node { int val; struct Node* next; } Node;
+typedef struct { Node* head; } List;
+void insertHead(List* l, int v) { Node* n = (Node*)malloc(sizeof(Node)); n->val = v; n->next = l->head; l->head = n; }
+void insertTail(List* l, int v) { Node* n = (Node*)malloc(sizeof(Node)); n->val = v; n->next = NULL; if (!l->head) { l->head = n; return; } Node* p = l->head; while (p->next) p = p->next; p->next = n; }
+void removeHead(List* l) { if (!l->head) return; Node* n = l->head; l->head = n->next; free(n); }
+void removeTail(List* l) { if (!l->head) return; if (!l->head->next) { free(l->head); l->head = NULL; return; } Node* p = l->head; while (p->next->next) p = p->next; free(p->next); p->next = NULL; }
+void list_free(List* l) { Node* p = l->head; while (p) { Node* n = p->next; free(p); p = n; } l->head = NULL; }`;
+
+const C_TREE = `// 二叉搜索树（BST），remove 为标准删除：叶子直接删、单子提升、双子用后继替换
+typedef struct TNode { int val; struct TNode* left, *right; } TNode;
+typedef struct { TNode* root; } Tree;
+void insert(Tree* t, int v) {
+    TNode* n = (TNode*)malloc(sizeof(TNode)); n->val = v; n->left = n->right = NULL;
+    if (!t->root) { t->root = n; return; }
+    TNode* p = t->root;
+    for (;;) { if (v < p->val) { if (!p->left) { p->left = n; return; } p = p->left; } else { if (!p->right) { p->right = n; return; } p = p->right; } }
+}
+static TNode* tree_min(TNode* r) { while (r->left) r = r->left; return r; }
+static TNode* tree_remove(TNode* r, int v) {
+    if (!r) return NULL;
+    if (v < r->val) r->left = tree_remove(r->left, v);
+    else if (v > r->val) r->right = tree_remove(r->right, v);
+    else {
+        if (!r->left) { TNode* t = r->right; free(r); return t; }
+        if (!r->right) { TNode* t = r->left; free(r); return t; }
+        TNode* succ = tree_min(r->right);
+        r->val = succ->val;
+        r->right = tree_remove(r->right, succ->val);
+    }
+    return r;
+}
+void remove(Tree* t, int v) { t->root = tree_remove(t->root, v); }
+static void tree_free(TNode* r) { if (!r) return; tree_free(r->left); tree_free(r->right); free(r); }
+void tree_clear(Tree* t) { tree_free(t->root); t->root = NULL; }`;
+
+const C_GRAPH = `// 图（邻接矩阵，节点值为 int）
+#define GRAPH_MAX 64
+typedef struct { int n; int vals[GRAPH_MAX]; int adj[GRAPH_MAX][GRAPH_MAX]; } Graph;
+int graph_find(Graph* g, int v) { for (int i = 0; i < g->n; i++) if (g->vals[i] == v) return i; return -1; }
+void addNode(Graph* g, int v) { if (graph_find(g, v) < 0) g->vals[g->n++] = v; }
+void addEdge(Graph* g, int a, int b) { int ia = graph_find(g, a), ib = graph_find(g, b); if (ia >= 0 && ib >= 0) g->adj[ia][ib] = 1; }
+void removeEdge(Graph* g, int a, int b) { int ia = graph_find(g, a), ib = graph_find(g, b); if (ia >= 0 && ib >= 0) g->adj[ia][ib] = 0; }
+void removeNode(Graph* g, int v) {
+    int i = graph_find(g, v); if (i < 0) return;
+    for (int k = i; k < g->n - 1; k++) g->vals[k] = g->vals[k + 1];
+    g->n--;
+    for (int a = 0; a < g->n; a++) { int ra = a >= i ? a + 1 : a; for (int b = 0; b < g->n; b++) { int cb = b >= i ? b + 1 : b; g->adj[a][b] = g->adj[ra][cb]; } }
+}`;
+
+function opToC(o) {
+  const v = o.var;
+  const label = o.raw != null ? (Array.isArray(o.raw) ? o.raw.join('-') : o.raw) : (Array.isArray(o.value) ? o.value.join('-') : o.value);
+  switch (o.t) {
+    case 'push': return `printf("push(${v}, ${label})\\n"); push(&${v}, ${o.value});`;
+    case 'pop': return `printf("pop(${v}) = %d\\n", pop(&${v}));`;
+    case 'enqueue': return `printf("enqueue(${v}, ${label})\\n"); enqueue(&${v}, ${o.value});`;
+    case 'dequeue': return `printf("dequeue(${v}) = %d\\n", dequeue(&${v}));`;
+    case 'insertHead': return `printf("insertHead(${v}, ${label})\\n"); insertHead(&${v}, ${o.value});`;
+    case 'insertTail': return `printf("insertTail(${v}, ${label})\\n"); insertTail(&${v}, ${o.value});`;
+    case 'removeHead': return `printf("removeHead(${v})\\n"); removeHead(&${v});`;
+    case 'removeTail': return `printf("removeTail(${v})\\n"); removeTail(&${v});`;
+    case 'insert': return `printf("insert(${v}, ${label})\\n"); insert(&${v}, ${o.value});`;
+    case 'remove': return `printf("remove(${v}, ${label})\\n"); remove(&${v}, ${o.value});`;
+    case 'addNode': return `printf("addNode(${v}, ${label})\\n"); addNode(&${v}, ${o.value});`;
+    case 'addEdge': return `printf("addEdge(${v}, ${label})\\n"); addEdge(&${v}, ${o.value[0]}, ${o.value[1]});`;
+    case 'removeNode': return `printf("removeNode(${v}, ${label})\\n"); removeNode(&${v}, ${o.value});`;
+    case 'removeEdge': return `printf("removeEdge(${v}, ${label})\\n"); removeEdge(&${v}, ${o.value[0]}, ${o.value[1]});`;
+    case 'destroy': {
+      const freeCall = { stack: '', queue: '', list: 'list_free(&' + v + ');', tree: 'tree_clear(&' + v + ');', graph: '' }[o.kind] || '';
+      return freeCall ? `printf("destroy(${v})\\n"); ${freeCall}` : `/* ${v}（${C_TYPE[o.kind] || o.kind}）为栈上变量，无需显式释放 */`;
+    }
+    default: return '';
+  }
+}
+
+function generateCCode() {
+  const ops = state.record.ops;
+  const kinds = new Set();
+  ops.forEach(o => { if (o.t === 'create') kinds.add(o.kind); });
+  const L = [];
+  L.push('#include <stdio.h>');
+  L.push('#include <stdlib.h>');
+  L.push('');
+  L.push('// 由「数据结构可视化平台」记录模式自动生成的完整 C 代码');
+  L.push('// 数据由 scanf 从标准输入读入；操作前按提示逐个输入。');
+  if (kinds.has('stack')) { L.push(''); L.push(C_STACK); }
+  if (kinds.has('queue')) { L.push(''); L.push(C_QUEUE); }
+  if (kinds.has('list')) { L.push(''); L.push(C_LIST); }
+  if (kinds.has('tree')) { L.push(''); L.push(C_TREE); }
+  if (kinds.has('graph')) { L.push(''); L.push(C_GRAPH); }
+  L.push('');
+  L.push('int main(void) {');
+  const creates = ops.filter(o => o.t === 'create');
+  // 被删除的元素对应的输入变量不再读入（drop 操作）
+  const dropped = new Set(ops.filter(o => o.t === 'drop').map(o => o.var));
+  const inputs = ops.filter(o => o.t === 'input' && !dropped.has(o.var));
+  if (creates.length) {
+    creates.forEach(o => L.push('    ' + C_TYPE[o.kind] + ' ' + o.var + ' = ' + C_INIT[o.kind] + ';'));
+    if (inputs.length) L.push('');
+  }
+  // 数据输入步骤：声明变量 + scanf 读入
+  if (inputs.length) {
+    L.push('    int ' + inputs.map(o => o.var).join(', ') + ';');
+    inputs.forEach(o => {
+      L.push('    printf("请输入元素 (原值: %s): ", ' + cStr(o.value) + ');');
+      L.push('    scanf("%d", &' + o.var + ');');
+    });
+    if (ops.some(o => o.t !== 'create' && o.t !== 'input' && o.t !== 'drop')) L.push('');
+  }
+  ops.forEach(o => {
+    if (o.t === 'create' || o.t === 'input' || o.t === 'drop') return;
+    const line = opToC(o);
+    if (line) L.push('    ' + line);
+  });
+  L.push('');
+  L.push('    return 0;');
+  L.push('}');
+  return L.join('\n');
+}
+
+$('btn-record').addEventListener('click', () => { state.record.active ? stopRecord() : startRecord(); });
+
+// ==================== INIT ====================
+$('code-modal-close').addEventListener('click', closeCodeModal);
+$('code-modal-copy').addEventListener('click', copyGenCode);
+$('code-modal-overlay').addEventListener('click', closeCodeModal);
+renderWaiting();
+renderStage();
+</script>
+
+<!-- ==================== 首次使用引导（游戏式点击指引） ==================== -->
+<style id="tour-css">
+.tour-panel{position:fixed;z-index:100000;background:rgba(6,8,12,.76);pointer-events:auto}
+.tour-ring{position:fixed;z-index:100001;pointer-events:none;border-radius:12px;box-shadow:0 0 0 2px rgba(255,180,84,.95),0 0 24px 5px rgba(255,180,84,.4);transition:all .16s cubic-bezier(.2,.8,.25,1)}
+.tour-ring.tour-ok{box-shadow:0 0 0 3px rgba(127,217,98,.95),0 0 26px 6px rgba(127,217,98,.45)}
+.tour-ring::after{content:"";position:absolute;inset:-7px;border-radius:16px;border:1px solid rgba(255,180,84,.55);animation:tourPulse 1.7s ease-out infinite}
+.tour-ring.tour-ok::after{border-color:rgba(127,217,98,.6)}
+@keyframes tourPulse{0%{opacity:.9;transform:scale(1)}70%{opacity:0;transform:scale(1.14)}100%{opacity:0}}
+.tour-tip{position:fixed;z-index:100002;width:310px;max-width:calc(100vw - 24px);box-sizing:border-box;background:linear-gradient(180deg,#171c26,#0f131a);border:1px solid rgba(255,180,84,.34);border-radius:14px;padding:13px 15px 11px;box-shadow:0 22px 55px rgba(0,0,0,.65);color:#d7dae0;font-family:var(--font-sans);font-size:12.5px;line-height:1.62;pointer-events:auto;animation:tourIn .22s ease}
+@keyframes tourIn{from{opacity:0;transform:translateY(7px) scale(.98)}to{opacity:1;transform:none}}
+.tour-tip .tour-step{display:inline-block;font-size:10.5px;font-family:var(--font-mono);color:#0a0e14;background:var(--amber,#ffb454);border-radius:999px;padding:1px 9px;font-weight:800;letter-spacing:.05em}
+.tour-tip h4{margin:9px 0 6px;font-size:13.5px;color:#fff;font-weight:700;letter-spacing:.2px}
+.tour-tip p{margin:0;color:#a9b2bf}
+.tour-tip p b{color:var(--amber,#ffb454);font-weight:700}
+.tour-tip .tour-tip-line{margin-top:9px;padding:7px 10px;border-radius:8px;background:rgba(255,180,84,.09);border:1px solid rgba(255,180,84,.22);color:#ffcf8a;font-size:11.5px;line-height:1.55}
+.tour-tip .tour-tip-line[hidden]{display:none}
+.tour-foot{display:flex;align-items:center;gap:8px;margin-top:12px}
+.tour-foot .tour-skip{margin-right:auto;background:none;border:none;color:#6c7380;font-size:11.5px;cursor:pointer;font-family:inherit;padding:4px 2px;text-decoration:underline;text-underline-offset:3px}
+.tour-foot .tour-skip:hover{color:#aeb6c2}
+.tour-foot button.tour-btn{border:1px solid #2a3140;background:#1a1f2a;color:#d7dae0;border-radius:9px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .13s}
+.tour-foot button.tour-btn:hover{background:#222836}
+.tour-foot button.tour-btn:disabled{opacity:.35;cursor:default}
+.tour-foot button.tour-primary{background:linear-gradient(135deg,#ffb454,#ff9a2e);border-color:transparent;color:#1a1200;font-weight:800}
+.tour-foot button.tour-primary:hover{filter:brightness(1.07)}
+#btn-tour{cursor:pointer;font-size:9px;color:var(--ink-muted);background:var(--bg-hover);padding:2px 8px;border-radius:3px;border:1px solid var(--line-soft);display:flex;align-items:center;gap:6px;transition:all .15s;font-family:var(--font-mono)}
+#btn-tour svg{width:12px;height:12px}
+#btn-tour:hover{border-color:var(--amber);color:var(--ink)}
+</style>
+<script>
+/* 首次进入「代码实例结构可视化」时的游戏式点击引导：
+   聚光遮罩 + 高亮环 + 气泡说明；用户按提示真实操作即自动进入下一步。 */
+(function () {
+  var KEY = 'hx_dsviz_tour_v1';
+  var PAD = 6;
+
+  function $(id) { return document.getElementById(id); }
+  function q(s, r) { return (r || document).querySelector(s); }
+  function qa(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function appState() { try { return (typeof state !== 'undefined') ? state : null; } catch (e) { return null; } }
+  function playState() { var s = appState(); return s && s.play ? s.play : null; }
+  function firstCard() { return q('#play-stage .struct-card'); }
+  function waitChip() { return q('#play-waiting .el-chip'); }
+  function elementCount() { var p = playState(); return p ? p.elements.length : 0; }
+  function contentCount() {
+    var p = playState(); if (!p) return 0; var n = 0;
+    (p.structs || []).forEach(function (s) { n += (s.items ? s.items.length : 0) + (s.nodes ? s.nodes.length : 0); });
+    return n;
+  }
+  function cardAddBtn(card) {
+    if (!card) return null;
+    var want = ['入栈', '入队', '＋ 根节点', '＋ 添加节点', '头部插入'];
+    var btns = qa('.sa-btn', card);
+    for (var i = 0; i < btns.length; i++) { if (want.indexOf(btns[i].textContent.trim()) >= 0) return btns[i]; }
+    return null;
+  }
+  function cardRemoveBtn(card) {
+    if (!card) return null;
+    var want = ['出栈', '出队', '删除头', '删除尾'];
+    var btns = qa('.sa-btn', card);
+    for (var i = 0; i < btns.length; i++) { if (want.indexOf(btns[i].textContent.trim()) >= 0) return btns[i]; }
+    return q('.node-rm', card);
+  }
+
+  var STEPS = [
+    { /* ① 生成元素 */
+      title: '① 先用输入框生成元素',
+      resolve: function () {
+        var row = q('.play-input-row');
+        return {
+          targets: row ? [row] : [],
+          desc: '在底部输入框里输入一个值（例如 <b>42</b> 或 <b>Alice</b>），然后点「<b>生成元素</b>」。',
+          tip: '也可以直接按回车生成；元素会先待在下方的「等待区」。'
+        };
+      },
+      onEnter: function (ctx) { ctx.base.el = elementCount(); },
+      done: function (ctx) { return elementCount() > ctx.base.el; }
+    },
+    { /* ② 添加结构 + 把元素放进去 */
+      title: '② 添加一个结构',
+      resolve: function () {
+        var p = playState(), card = firstCard();
+        if (p && p.picking) {
+          return {
+            targets: waitChip() ? [waitChip()] : [q('#play-waiting')],
+            desc: '就是它 —— 点等待区里的这个元素，它会飞进卡片里。',
+            tip: '点空白处或按 Esc 可以取消这次挑选。'
+          };
+        }
+        if (card) {
+          var btn = cardAddBtn(card);
+          return {
+            targets: btn ? [btn] : [card],
+            avoid: [card],
+            desc: '点卡片上的「<b>' + (btn ? btn.textContent.trim() : '入栈') + '</b>」，再到下方等待区挑一个元素加进去。',
+            tip: '栈：后进先出 LIFO；队列：先进先出 FIFO。'
+          };
+        }
+        return {
+          targets: q('.play-tools') ? [q('.play-tools')] : [],
+          desc: '点上方任意一个结构的「<b>＋ 添加</b>」（推荐先试 <b>栈 Stack</b>），舞台上就会出现一张工具卡。',
+          tip: '已支持：栈 / 队列 / 二叉树 / 图 / 链表 / 自动。'
+        };
+      },
+      onEnter: function (ctx) { ctx.base.content = contentCount(); },
+      done: function (ctx) { return !!firstCard() && contentCount() > ctx.base.content; }
+    },
+    { /* ③ 拖动工具卡 */
+      title: '③ 拖动工具卡自由排版',
+      resolve: function () {
+        var card = firstCard();
+        return {
+          targets: card ? [card] : [],
+          desc: '按住卡片的<b>标题栏</b>或<b>空白处</b>拖动 —— 卡片可以在舞台上随意摆放，多张卡片也不会互相遮挡。',
+          tip: '卡片里的元素同样能拖动排序。'
+        };
+      },
+      onEnter: function (ctx) {
+        var c = firstCard();
+        ctx.base.left = c ? c.style.left : null;
+        ctx.base.top = c ? c.style.top : null;
+      },
+      done: function (ctx) {
+        var c = firstCard(); if (!c) return false;
+        return c.style.left !== ctx.base.left || c.style.top !== ctx.base.top;
+      }
+    },
+    { /* ④ 删除卡片里的元素 */
+      title: '④ 把元素从卡片里删除',
+      resolve: function () {
+        var card = firstCard(), btn = cardRemoveBtn(card);
+        return {
+          targets: btn ? [btn] : (card ? [card] : []),
+          avoid: card ? [card] : [],
+          desc: '点卡片上的「<b>' + (btn ? btn.textContent.trim() : '出栈') + '</b>」把元素移出结构 —— 它会飞回下方等待区；再点它的 <b>×</b> 就彻底删掉了。',
+          tip: '结构里的元素不能直接删，得先把它移出来。'
+        };
+      },
+      onEnter: function (ctx) { ctx.base.content = contentCount(); },
+      done: function (ctx) { return contentCount() < ctx.base.content; }
+    }
+  ];
+
+  var root = null, panels = [], ring = null, tip = null;
+  var active = false, stepIdx = 0, ctx = { base: {} }, rafId = 0, advancing = false;
+
+  function build() {
+    root = document.createElement('div');
+    root.className = 'tour-root';
+    root.innerHTML =
+      '<div class="tour-panel"></div><div class="tour-panel"></div>' +
+      '<div class="tour-panel"></div><div class="tour-panel"></div>' +
+      '<div class="tour-ring"></div>' +
+      '<div class="tour-tip">' +
+      '  <span class="tour-step"></span>' +
+      '  <h4></h4>' +
+      '  <p></p>' +
+      '  <div class="tour-tip-line" hidden></div>' +
+      '  <div class="tour-foot">' +
+      '    <button class="tour-skip" type="button">跳过引导</button>' +
+      '    <button class="tour-btn tour-prev" type="button">上一步</button>' +
+      '    <button class="tour-btn tour-primary tour-next" type="button">下一步</button>' +
+      '  </div>' +
+      '</div>';
+    document.body.appendChild(root);
+    panels = qa('.tour-panel', root);
+    ring = q('.tour-ring', root);
+    tip = q('.tour-tip', root);
+    q('.tour-skip', root).addEventListener('click', function () { finish(true); });
+    q('.tour-prev', root).addEventListener('click', function () { if (stepIdx > 0) go(stepIdx - 1); });
+    q('.tour-next', root).addEventListener('click', function () { if (stepIdx < STEPS.length - 1) go(stepIdx + 1); else finish(false); });
+  }
+
+  function boxOf(els) {
+    var box = null;
+    els.forEach(function (el) {
+      if (!el) return;
+      var r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      if (!box) box = { l: r.left, t: r.top, r: r.right, b: r.bottom };
+      else {
+        box.l = Math.min(box.l, r.left); box.t = Math.min(box.t, r.top);
+        box.r = Math.max(box.r, r.right); box.b = Math.max(box.b, r.bottom);
+      }
+    });
+    return box;
+  }
+  function px(n) { return Math.round(n) + 'px'; }
+  function place(el, l, t, w, h) {
+    el.style.left = px(l); el.style.top = px(t);
+    el.style.width = px(Math.max(0, w)); el.style.height = px(Math.max(0, h));
+  }
+
+  function intersect(a, b) { return !(a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t); }
+
+  // 气泡定位：优先「目标下方」→「目标上方」→ 绕开所在卡片的右/下/上/左，避免遮住要高亮的东西
+  function placeTip(anchor, avoid, W, H) {
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    var cx = anchor.l + (anchor.r - anchor.l) / 2 - tw / 2;
+    var cands = [{ x: cx, y: anchor.b + 14 }, { x: cx, y: anchor.t - th - 14 }];
+    if (avoid) {
+      cands.push({ x: avoid.r + 14, y: avoid.t });
+      cands.push({ x: avoid.l, y: avoid.b + 14 });
+      cands.push({ x: avoid.l, y: avoid.t - th - 14 });
+      cands.push({ x: avoid.l - tw - 14, y: avoid.t });
+    }
+    var out = null;
+    for (var i = 0; i < cands.length; i++) {
+      var x = Math.min(Math.max(12, cands[i].x), Math.max(12, W - tw - 12));
+      var y = Math.min(Math.max(12, cands[i].y), Math.max(12, H - th - 12));
+      if (!out) out = { x: x, y: y };
+      var box = { l: x, t: y, r: x + tw, b: y + th };
+      if (intersect(box, anchor)) continue;
+      if (avoid && intersect(box, avoid)) continue;
+      out = { x: x, y: y };
+      break;
+    }
+    place(tip, out.x, out.y, tw, th);
+  }
+
+  function layout(d) {
+    var W = window.innerWidth, H = window.innerHeight;
+    var box = boxOf(d.targets || []);
+    if (!box) {
+      // 没有可高亮目标：整页压暗 + 居中气泡
+      place(panels[0], 0, 0, W, H);
+      place(panels[1], 0, 0, 0, 0); place(panels[2], 0, 0, 0, 0); place(panels[3], 0, 0, 0, 0);
+      ring.style.display = 'none';
+      var tw = tip.offsetWidth, th = tip.offsetHeight;
+      place(tip, (W - tw) / 2, (H - th) / 2, tw, th);
+      return;
+    }
+    var l = Math.max(0, box.l - PAD), t = Math.max(0, box.t - PAD);
+    var r = Math.min(W, box.r + PAD), b = Math.min(H, box.b + PAD);
+    var bw = r - l, bh = b - t;
+
+    place(panels[0], 0, 0, W, t);                 // 上
+    place(panels[1], 0, b, W, H - b);             // 下
+    place(panels[2], 0, t, l, bh);                // 左
+    place(panels[3], r, t, W - r, bh);            // 右
+
+    ring.style.display = '';
+    place(ring, l, t, bw, bh);
+    placeTip({ l: l, t: t, r: r, b: b }, boxOf(d.avoid || []), W, H);
+  }
+
+  function loop() {
+    if (!active) return;
+    var step = STEPS[stepIdx];
+    var d = step.resolve(ctx);
+    var title = d.title || step.title || '';
+    var sig = title + '||' + d.desc + '||' + (d.tip || '');
+    if (sig !== ctx.sig) {
+      ctx.sig = sig;
+      q('h4', tip).textContent = title;
+      q('p', tip).innerHTML = d.desc;
+      var line = q('.tour-tip-line', tip);
+      if (d.tip) { line.hidden = false; line.innerHTML = d.tip; } else { line.hidden = true; }
+      q('.tour-step', tip).textContent = (stepIdx + 1) + ' / ' + STEPS.length;
+      q('.tour-prev', tip).disabled = stepIdx === 0;
+      q('.tour-next', tip).textContent = stepIdx === STEPS.length - 1 ? '完成' : '下一步';
+    }
+    layout(d);
+    if (!advancing && Date.now() - ctx.t0 > 420 && step.done && step.done(ctx)) {
+      advance();
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function advance() {
+    if (advancing) return;
+    advancing = true;
+    var from = stepIdx;
+    ring.classList.add('tour-ok');
+    setTimeout(function () {
+      advancing = false;
+      if (!active) return;
+      ring.classList.remove('tour-ok');
+      if (stepIdx !== from) return;
+      if (stepIdx < STEPS.length - 1) go(stepIdx + 1); else finish(false);
+    }, 380);
+  }
+
+  function go(i) {
+    if (i >= STEPS.length) return finish(false);
+    stepIdx = i;
+    advancing = false;
+    ring.classList.remove('tour-ok');
+    ctx = { base: {}, sig: '', t0: Date.now() };
+    if (STEPS[i].onEnter) STEPS[i].onEnter(ctx);
+  }
+
+  function finish(skipped) {
+    active = false;
+    cancelAnimationFrame(rafId);
+    root.style.display = 'none';
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+    if (typeof toast === 'function') toast(skipped ? '已跳过引导 —— 随时点右上角「引导」再看' : '引导完成 —— 可以放手玩啦');
+  }
+
+  function start() {
+    if (active) return;
+    if (!q('#play-stage')) return;
+    if (!root) build();
+    root.style.display = '';
+    active = true;
+    go(0);
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function addReplayBtn() {
+    var hr = q('.header-right');
+    if (!hr || $('btn-tour')) return;
+    var b = document.createElement('button');
+    b.id = 'btn-tour';
+    b.type = 'button';
+    b.title = '玩法引导：重新播放使用教学';
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.1a2.5 2.5 0 1 1 3.3 2.3c-.6.3-.9.8-.9 1.4v.3"/><path d="M12 16.3h.01"/></svg><span>引导</span>';
+    b.addEventListener('click', function () { start(); });
+    hr.insertBefore(b, hr.firstChild);
+  }
+
+  function init() {
+    addReplayBtn();
+    var seen = false;
+    try { seen = localStorage.getItem(KEY) === '1'; } catch (e) {}
+    if (!seen) setTimeout(start, 650);
+  }
+  // 手动控制入口（调试 / 需要重看）：HxVizTour.start() / HxVizTour.reset()
+  window.HxVizTour = {
+    start: start,
+    reset: function () { try { localStorage.removeItem(KEY); } catch (e) {} }
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>

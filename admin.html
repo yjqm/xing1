@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>互动课堂 · 管理后台</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #08080c; --surface: #0f0f15; --card: #14141c; --card-hover: #1a1a24;
+      --accent: #ff5d3b; --accent-soft: rgba(255,93,59,.12);
+      --text: #f5f5f7; --text-dim: #9a9aa6; --text-mute: #56565f;
+      --border: rgba(255,255,255,.06); --border-med: rgba(255,255,255,.10);
+      --green: #34d399; --amber: #fbbf24; --cyan: #22d3ee; --purple: #a78bfa;
+    }
+    body {
+      font-family: 'Noto Sans SC', 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6; padding: 28px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; }
+    header.topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 18px; margin-bottom: 22px; border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: .6rem; font-size: 1.15rem; font-weight: 800; }
+    .brand .icon {
+      width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; background: linear-gradient(135deg, var(--accent), #ff7a5c);
+      box-shadow: 0 4px 16px rgba(255,93,59,.4); font-size: 1rem;
+    }
+    .who { font-size: .85rem; color: var(--text-dim); }
+    .btn {
+      border: 1px solid var(--border-med); background: rgba(255,255,255,.04); color: var(--text);
+      padding: 8px 14px; border-radius: 9px; cursor: pointer; font-size: .85rem;
+    }
+    .btn:hover { background: rgba(255,255,255,.08); }
+    .btn.primary { background: var(--accent); border-color: transparent; color: #fff; font-weight: 600; }
+    .btn.primary:hover { background: #ed4a28; }
+    .btn.sm { padding: 4px 9px; font-size: .76rem; border-radius: 7px; }
+    .btn[disabled] { opacity: .35; cursor: not-allowed; }
+    h2.section { font-size: 1.05rem; margin: 26px 0 14px; font-weight: 700; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+    .stat {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px;
+    }
+    .stat .num { font-size: 1.8rem; font-weight: 800; }
+    .stat .lbl { font-size: .8rem; color: var(--text-dim); margin-top: 4px; }
+    .stat.a .num { color: var(--accent); }
+    .stat.b .num { color: var(--cyan); }
+    .stat.c .num { color: var(--amber); }
+    .stat.d .num { color: var(--green); }
+    .panel {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      overflow: hidden; margin-bottom: 18px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-dim); font-weight: 600; background: rgba(255,255,255,.02); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .tag { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 600; }
+    .tag.admin { background: rgba(167,139,250,.15); color: var(--purple); }
+    .tag.teacher { background: rgba(34,211,238,.15); color: var(--cyan); }
+    .tag.student { background: rgba(52,211,153,.12); color: var(--green); }
+    .tag.unknown { background: rgba(255,255,255,.06); color: var(--text-dim); }
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .hot { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: .82rem; }
+    .chip b { color: var(--accent); }
+    .empty { padding: 22px; text-align: center; color: var(--text-mute); }
+    .err { color: #f87171; }
+    .hint { font-size: .78rem; color: var(--text-mute); margin-top: 6px; }
+    a.back { color: var(--text-dim); text-decoration: none; font-size: .82rem; }
+    a.back:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand"><span class="icon">🛠️</span> 互动课堂 · 管理后台</div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span class="who" id="who">检测中…</span>
+        <a class="back" href="index.html">← 返回首页</a>
+        <button class="btn" onclick="Admin.logout()">退出登录</button>
+      </div>
+    </header>
+
+    <div id="forbidden" class="panel" hidden>
+      <div class="empty err">⛔ 无管理员权限，正在跳回首页…</div>
+    </div>
+
+    <div id="dash" hidden>
+      <h2 class="section">概览</h2>
+      <div class="cards" id="cards"></div>
+
+      <h2 class="section">用户列表 <span class="hint">（可在此修改任意账号角色）</span></h2>
+      <div class="panel">
+        <table>
+          <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>邮箱</th><th>角色</th><th>注册时间</th><th>操作</th></tr></thead>
+          <tbody id="userRows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <h2 class="section">学生学情 <span class="hint">（已学知识点 / 做题数 / 学习时长 / 最近活跃）</span></h2>
+      <div class="panel">
+        <table>
+          <thead><tr><th>用户名</th><th>已学知识点</th><th>做题数</th><th>学习时长</th><th>最近活跃</th></tr></thead>
+          <tbody id="studentRows"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+    var Admin = {};
+    window.Admin = Admin;
+
+    function api(path, method, body) {
+      var opts = { method: method || 'GET', credentials: 'include', headers: {} };
+      if (body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      return fetch('/api' + path, opts).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) {
+          if (!r.ok) throw new Error(d.error || ('请求失败 ' + r.status));
+          return d;
+        });
+      });
+    }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function fmtDur(sec) {
+      sec = parseInt(sec, 10) || 0;
+      var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+      if (h > 0) return h + 'h' + m + 'm';
+      if (m > 0) return m + 'm';
+      return sec + 's';
+    }
+    function fmtTime(t) {
+      if (!t) return '—';
+      return String(t).replace('T', ' ').slice(0, 16);
+    }
+    var roleTag = { admin: 'admin', teacher: 'teacher', student: 'student' };
+    function tagHtml(role) {
+      var cls = roleTag[role] || 'unknown';
+      var label = { admin: '管理员', teacher: '教师', student: '学生' }[role] || '未知';
+      return '<span class="tag ' + cls + '">' + label + '</span>';
+    }
+
+    Admin.logout = function () {
+      api('/auth/logout', 'POST').then(function () {
+        location.href = 'index.html';
+      }).catch(function () { location.href = 'index.html'; });
+    };
+
+    async function loadData() {
+      var users, stats, students;
+      try {
+        users = (await api('/admin/users')).users || [];
+      } catch (e) { users = []; }
+      try {
+        stats = (await api('/admin/stats'));
+      } catch (e) { stats = {}; }
+      try {
+        students = (await api('/admin/students')).students || [];
+      } catch (e) { students = []; }
+
+      // 概览卡片
+      var n = { admin: 0, teacher: 0, student: 0, unknown: 0 };
+      users.forEach(function (u) { n[u.role] = (n[u.role] || 0) + 1; });
+      var total = users.length;
+      var cards =
+        card('a', total, '总用户数') +
+        card('b', n.admin, '管理员') +
+        card('c', n.teacher, '教师') +
+        card('d', n.student, '学生') +
+        card('b', stats.active_today || 0, '今日活跃') +
+        card('c', (stats.hot_kps || []).length, '热门知识点');
+      document.getElementById('cards').innerHTML = cards;
+
+      var hot = (stats.hot_kps || []).map(function (k) {
+        return '<span class="chip">' + esc(k.kp_name) + ' <b>' + (k.view_count || 0) + '</b></span>';
+      }).join('') || '<span class="hint">暂无浏览记录</span>';
+      var hotRow = document.createElement('div');
+      hotRow.className = 'hot';
+      hotRow.style.margin = '10px 0 4px';
+      hotRow.innerHTML = hot;
+      document.getElementById('cards').appendChild(hotRow);
+
+      // 用户列表
+      var meId = window.__meId;
+      var rows = users.map(function (u) {
+        var actions = ['student', 'teacher', 'admin'].map(function (r) {
+          var dis = (u.id === meId && r !== 'admin') ? ' disabled' : '';
+          var on = (u.role === r) ? ' disabled style="opacity:.5"' : '';
+          return '<button class="btn sm' + dis + on + '" onclick="Admin.setRole(' + u.id + ',\'' + r + '\')">' + ({ student: '学生', teacher: '教师', admin: '管理员' }[r]) + '</button>';
+        }).join('');
+        return '<tr>' +
+          '<td>' + u.id + '</td>' +
+          '<td>' + esc(u.username) + '</td>' +
+          '<td>' + esc(u.nickname || '') + '</td>' +
+          '<td>' + esc(u.email || '') + '</td>' +
+          '<td>' + tagHtml(u.role) + '</td>' +
+          '<td>' + fmtTime(u.created_at) + '</td>' +
+          '<td><div class="row-actions">' + actions + '</div></td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('userRows').innerHTML = rows || '<tr><td colspan="7" class="empty">暂无用户</td></tr>';
+
+      // 学情
+      var srows = students.map(function (s) {
+        return '<tr>' +
+          '<td>' + esc(s.username) + '</td>' +
+          '<td>' + (s.studied_kps || 0) + '</td>' +
+          '<td>' + (s.questions_done || 0) + '</td>' +
+          '<td>' + fmtDur(s.total_seconds) + '</td>' +
+          '<td>' + fmtTime(s.last_active) + '</td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('studentRows').innerHTML = srows || '<tr><td colspan="5" class="empty">暂无学生数据</td></tr>';
+    }
+
+    function card(cls, num, lbl) {
+      return '<div class="stat ' + cls + '"><div class="num">' + num + '</div><div class="lbl">' + lbl + '</div></div>';
+    }
+
+    Admin.setRole = async function (userId, role) {
+      try {
+        await api('/admin/set-role', 'POST', { user_id: userId, role: role });
+        await loadData();
+      } catch (e) { alert(e.message || '修改失败'); }
+    };
+
+    (async function init() {
+      try {
+        var me = await api('/auth/me');
+        if (!me.user || me.user.role !== 'admin') throw new Error('forbidden');
+        window.__meId = me.user.id;
+        document.getElementById('who').textContent = (me.user.nickname || me.user.username) + '（管理员）';
+        document.getElementById('dash').hidden = false;
+        await loadData();
+      } catch (e) {
+        document.getElementById('forbidden').hidden = false;
+        setTimeout(function () { location.href = 'index.html'; }, 1200);
+      }
+    })();
+  })();
+  </script>
+</body>
+</html>

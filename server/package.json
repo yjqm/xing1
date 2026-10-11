@@ -1,0 +1,24 @@
+{
+  "name": "interactive-classroom-server",
+  "version": "1.0.0",
+  "description": "互动课堂 账号管理与进度同步后端 (Node + Express + MySQL)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js",
+    "setup": "node src/setup.js",
+    "public": "node scripts/sync-public.js",
+    "postinstall": "node scripts/sync-public.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  }
+}

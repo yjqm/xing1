@@ -1,0 +1,52 @@
+# ⚠️ 重要说明（请勿删除本段注释）
+# ---------------------------------------------------------------------------
+# 1) 本工作流只发布「纯前端静态资源」，产物由 server/scripts/sync-public.js 生成到
+#    server/public（白名单同步：不含 server/src 后端源码、不含 tools/、不含调试脚本）。
+#    · 修正前此处为 path: '.'，会把整个仓库（后端源码、内部工具等）公开发布到互联网。
+# 2) GitHub Pages 无法运行后端（Node + MySQL），因此本预览站：
+#      ✗ 登录 / 注册      ✗ 学习记录同步      ✗ 社区发帖 / 每日挑战
+#    仅页面浏览与纯前端可视化可用。
+# 3) 正式访问地址请使用已部署后端的服务器，不要把本预览地址当作正式地址发给学生。
+# ---------------------------------------------------------------------------
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 生成纯前端发布目录（白名单同步，自动排除后端源码与内部工具）
+      - name: Build static frontend (server/public)
+        run: node server/scripts/sync-public.js
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'server/public'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

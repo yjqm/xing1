@@ -1,0 +1,23 @@
+node_modules/
+.DS_Store
+Thumbs.db
+*.pptx
+create_ppt.py
+.workbuddy/
+
+# 服务器敏感配置（勿提交：含数据库密码与 JWT 密钥）
+server/.env
+
+# 前端发布产物（由 `npm run public` 从仓库根目录生成）
+server/public/
+server/start-*.log
+
+# 社区附件上传目录（运行时产物，不要提交）
+server/uploads/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# 运行时产物（含本机 IP 与二维码，由 phone-url.py 生成）
+phone-access.html

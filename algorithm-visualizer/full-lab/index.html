@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algorithm Visualizer · 复现版</title>
+<link rel="icon" type="image/svg+xml" href="../../assets/zyut-mark.svg?v=20261008-4">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- 顶部工具栏 -->
+  <header id="toolbar">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <strong>互动教学平台 · 完整算法实验室</strong>
+      <span class="sub">25 个算法 · 本地可视化</span>
+    </div>
+    <div class="controls">
+      <button id="btnBack" class="tb" title="后退一步">&lt;</button>
+      <button id="btnPlay" class="tb primary" title="播放/暂停 (空格)">▶</button>
+      <button id="btnFwd" class="tb" title="前进一步">&gt;</button>
+      <button id="btnEnd" class="tb" title="跳到末尾">&gt;&gt;|</button>
+      <button id="btnReset" class="tb" title="回到开头">|&lt;&lt;</button>
+      <div class="sep"></div>
+      <label class="vlabel">速度</label>
+      <input type="range" id="speedSlider" min="1" max="200" value="40">
+      <span id="speedVal">40x</span>
+      <div class="sep"></div>
+      <button id="btnRun" class="tb run" title="运行当前算法 (F5)">▶ 运行</button>
+    </div>
+    <div class="status"><a href="../index.html" style="color:inherit;text-decoration:none">轻量动画</a>　·　<a href="../runtime-lab.html" style="color:inherit;text-decoration:none">C++ 实时编程</a>　·　<span id="statusBar">就绪</span></div>
+  </header>
+
+  <!-- 三栏主体 -->
+  <div id="main">
+
+    <!-- 左：算法分类树 -->
+    <aside id="sidebar">
+      <div class="panel-title">算法库</div>
+      <div id="algTree"></div>
+    </aside>
+
+    <!-- 中：代码 + 说明 -->
+    <section id="codePane">
+      <div class="pane-head">
+        <span id="algTitle">请选择算法</span>
+        <span id="algCat" class="cat-tag"></span>
+        <button id="btnCustom" class="mini" title="自己写算法代码并在右侧可视化">✎ 自定义代码</button>
+        <select id="langSel" title="编程语言（C/C++/Python 为常用语法子集，运行时自动转译）" style="display:none">
+          <option value="js">JavaScript</option>
+          <option value="c">C</option>
+          <option value="cpp">C++</option>
+          <option value="py">Python</option>
+        </select>
+        <span class="spacer"></span>
+        <span id="stepInfo" class="step-info"></span>
+      </div>
+      <div id="descBar" class="desc-bar"></div>
+      <div id="codeWrap" class="code-wrap">
+        <div id="lineNum" class="code-col"></div>
+        <div id="codeView" class="code-col"></div>
+      </div>
+      <textarea id="codeEditor" class="code-editor" spellcheck="false" style="display:none"></textarea>
+    </section>
+
+    <!-- 右：可视化画布 -->
+    <section id="vizPane">
+      <div class="pane-head">
+        <span>可视化</span>
+        <span class="spacer"></span>
+        <select id="viewSwitch" title="切换视图">
+          <option value="auto">自动视图</option>
+          <option value="main">主画布</option>
+          <option value="log">日志输出</option>
+        </select>
+        <button id="btnClear" class="mini" title="清除全部可视化">清空</button>
+      </div>
+      <div id="canvasStack"></div>
+      <div id="logView" style="display:none"></div>
+    </section>
+  </div>
+
+  <!-- 底部状态 -->
+  <footer id="footer">
+    <span id="cmdInfo">命令: 0 / 0</span>
+    <span class="spacer"></span>
+    <span id="helpText">空格=播放/暂停 · ←/→=步进 · R=重新运行 · 点击左侧算法载入</span>
+  </footer>
+</div>
+
+<div id="errToast" class="err-toast" style="display:none"></div>
+
+<!-- 核心：录制器 / 渲染器 / 播放器 -->
+<script src="js/core.js"></script>
+<script src="js/player.js"></script>
+<script src="js/render-graph.js"></script>
+<!-- 内置算法库 -->
+<script src="js/algorithms/alg-sort.js"></script>
+<script src="js/algorithms/alg-search.js"></script>
+<script src="js/algorithms/alg-graph.js"></script>
+<script src="js/algorithms/alg-graph2.js"></script>
+<script src="js/algorithms/alg-tree.js"></script>
+<script src="js/algorithms/alg-dp.js"></script>
+<!-- 多语言转译器（C/C++/Python → JS） -->
+<script src="js/langs.js"></script>
+<!-- 应用控制器 -->
+<script src="js/app.js"></script>
+</body>
+</html>
