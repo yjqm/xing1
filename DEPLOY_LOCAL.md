@@ -19,7 +19,7 @@
 | 项 | 值 |
 | --- | --- |
 | 管理员账号 | `admin` |
-| 初始密码 | `Admin@2026` |
+| 初始密码 | `〈本机管理员密码〉` |
 | 邮箱 | admin@local.dev |
 
 - 用户名在 `server/.env` 的 `ADMIN_USERNAMES` 中列出的账号自动获得 admin 角色。
@@ -35,7 +35,7 @@
 | 程序目录 | `C:\Users\Lenovo\.workbuddy\binaries\mysql\mysql-8.4.9-winx64` |
 | 配置文件 | `C:\Users\Lenovo\.workbuddy\binaries\mysql\my.ini` |
 | 数据目录 | `...\mysql-8.4.9-winx64\data` |
-| 连接 | `127.0.0.1:3306`，用户 `root`，密码 `ic_local_2026` |
+| 连接 | `127.0.0.1:3306`，用户 `root`，密码 `〈本机数据库密码〉` |
 | 库名 | `interactive_classroom`（首次启动自动建库建表，13 张表） |
 
 已启用 `mysql_native_password` 认证，兼容 Node `mysql2` 驱动。

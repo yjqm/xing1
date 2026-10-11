@@ -32,7 +32,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKbawjuEUDdtnRvcshMVxCR4G1ibdzIaINshhRRIrSH
 
 - Repository name：`agentic-ai-teaching-platform`
 - Description：可留空
-- **建议选 Private**：`DEPLOY_LOCAL.md` 里记录了本地数据库密码 `ic_local_2026` 和管理员初始密码 `Admin@2026`，公开仓库会暴露这些信息
+- **建议选 Private**：`DEPLOY_LOCAL.md` 里记录了本地数据库密码 `〈本机数据库密码〉` 和管理员初始密码 `〈本机管理员密码〉`，公开仓库会暴露这些信息
 - **不要勾选** "Add a README file" / "Add .gitignore" / "Choose a license"，保持完全空仓库
 
 点 Create repository。

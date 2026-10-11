@@ -157,7 +157,7 @@ td:first-child{{color:#6b7280;width:120px}}
 </ol></div>
 <div class="card"><h2>全部候选地址</h2><table>{rows}</table></div>
 <div class="card"><h2>登录账号</h2><table>
-<tr><td>管理员</td><td class="mono">admin / Admin@2026</td><td></td></tr>
+<tr><td>管理员</td><td class="mono">admin / 〈本机管理员密码〉</td><td></td></tr>
 <tr><td>学生</td><td>手机打开后直接注册</td><td></td></tr></table></div>
 </div></body></html>"""
 
