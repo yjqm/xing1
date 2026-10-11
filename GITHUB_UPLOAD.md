@@ -53,7 +53,21 @@ git remote add origin git@github.com:yjqm/agentic-ai-teaching-platform.git
 git push -u origin main
 ```
 
+## GitHub Pages 静态预览站
+
+仓库公开且自带 `.github/workflows/pages.yml`，push 到 `main` 会自动发布纯前端静态站。
+
+| 项 | 值 |
+| --- | --- |
+| 访问地址 | https://yjqm.github.io/xing1/ |
+| 启用方式 | Settings → Pages → Build and deployment → Source 选 **GitHub Actions** |
+| 触发 | push 到 `main`，或在 Actions 页手动 Run workflow |
+| 构建内容 | `node server/scripts/sync-public.js` 生成的 `server/public`（白名单同步，不含后端源码） |
+
+**能力边界**：Pages 只托管静态文件，跑不了 Node 后端和 MySQL，因此登录/注册、学习进度同步、社区发帖、每日挑战均不可用；页面浏览、算法可视化、题库浏览正常。不要把这个地址当作正式教学地址使用。
+
 ## 备注
 
 - 仓库里不含 `server/public/`（前端发布目录已在 `.gitignore` 中）。他人 clone 后需要先 `cd server && npm install`，安装脚本会自动从仓库根目录生成 public 目录。
-- 若后续要公开此仓库，建议先把 `DEPLOY_LOCAL.md` 中的密码替换为占位符。
+- 若后续要公开此仓库，建议先把 `DEPLOY_LOCAL.md` 中的密码替换为占位符（已处理）。
+- `start-local.bat` / `stop-local.bat` 中保留了本机 MySQL 密码，因为它们是本机启动脚本的必需参数；数据库仅监听 `127.0.0.1`。
