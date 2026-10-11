@@ -44,6 +44,7 @@ const INCLUDE = [
   'learning-tools.css',
   'ui-polish.js',
   'ui-polish.css',
+  'mobile-optimizations.css',
   'achievements-core.js',
   'ds-questions.js',
   'leader-line.min.js',

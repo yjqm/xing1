@@ -23,6 +23,33 @@ pre, code { word-break: break-word; white-space: pre-wrap; }
 
   /* topbar 更紧凑 */
   :root { --topbar-h: 50px; }
+
+  /* 恢复汉堡菜单按钮（ui-polish.css 在小屏把它藏了，导致侧边栏无法打开） */
+  .topbar-menu-btn {
+    display: flex !important;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* 侧边栏抽屉：默认移出屏幕，.mobile-open 时滑入（配合 app.js toggleSidebar） */
+  #sidebar {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: min(80vw, 300px) !important;
+    transform: translateX(-102%);
+    transition: transform 0.28s ease;
+    z-index: 300 !important;
+    box-shadow: none;
+  }
+  #sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 18px 0 50px rgba(0, 0, 0, 0.45);
+  }
+  /* 遮罩（app.js 会动态创建 #mobileOverlay） */
+  .mobile-overlay { z-index: 290; }
+
   .topbar {
     padding: 0 10px;
     gap: 6px;
